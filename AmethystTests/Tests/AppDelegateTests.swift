@@ -214,39 +214,6 @@ class AppDelegateTests: QuickSpec {
             }
         }
 
-        describe("Sparkle feed configuration") {
-            let infoDictionary: [String: Any] = [
-                SparkleFeedConfiguration.stableFeedKey: "https://example.com/appcast.xml",
-                SparkleFeedConfiguration.canaryFeedKey: "https://example.com/canary-appcast.xml"
-            ]
-
-            it("selects the stable feed by default") {
-                expect(SparkleFeedConfiguration.feedURLString(useCanaryBuild: false, infoDictionary: infoDictionary))
-                    .to(equal("https://example.com/appcast.xml"))
-            }
-
-            it("selects the canary feed when requested") {
-                expect(SparkleFeedConfiguration.feedURLString(useCanaryBuild: true, infoDictionary: infoDictionary))
-                    .to(equal("https://example.com/canary-appcast.xml"))
-            }
-
-            it("rejects missing feed keys") {
-                expect(SparkleFeedConfiguration.feedURLString(useCanaryBuild: false, infoDictionary: [:])).to(beNil())
-            }
-
-            it("rejects non-HTTPS feed URLs") {
-                let dictionary = [SparkleFeedConfiguration.stableFeedKey: "http://example.com/appcast.xml"]
-
-                expect(SparkleFeedConfiguration.feedURLString(useCanaryBuild: false, infoDictionary: dictionary)).to(beNil())
-            }
-
-            it("rejects malformed feed URLs") {
-                let dictionary = [SparkleFeedConfiguration.stableFeedKey: "not a url"]
-
-                expect(SparkleFeedConfiguration.feedURLString(useCanaryBuild: false, infoDictionary: dictionary)).to(beNil())
-            }
-        }
-
         describe("versioned state") {
             struct Fixture: Codable, Equatable {
                 let value: String

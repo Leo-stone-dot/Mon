@@ -51,29 +51,13 @@
 
 | 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
 | --- | --- | --- | --- | --- | --- |
-| Sparkle feed configuration | Sparkle feed configuration 是代码类型，描述更新源键与更新源地址之间的映射。 | 代码类型 | 映射关系 | `SUFeedURL`、`SUCanaryFeedURL`、缺失、格式无效 | S1 |
-| Sparkle feed URL | Sparkle feed URL 是字符串，表示 Sparkle 客户端读取更新元数据的位置。 | 字符串 | 位置 | 合法 HTTPS URL、缺失、格式无效 | S1, S2 |
-| stable feed | stable feed 是更新源类别，其内容面向默认发布通道。 | 更新源类别 | 发布通道 | 默认发布通道 | S1 |
-| canary feed | canary feed 是更新源类别，其内容面向 canary 发布通道。 | 更新源类别 | 发布通道 | canary 发布通道 | S1 |
-| appcast | appcast 是 XML 更新目录，列出软件版本、下载地址与签名信息。 | 更新目录 | 更新元数据 | RSS/XML 条目 | S20 |
-| appcast gate | appcast gate 是验证脚本，检查 appcast item 与构建产物的版本、最低系统版本、HTTPS 地址、EdDSA 签名和长度是否一致。 | 验证脚本 | 一致性检查 | 通过、失败 | S4 |
-| appcast staging directory | appcast staging directory 是本地目录，保存待发布 ZIP、同 basename 的 release notes 和 appcast.xml。 | 本地目录 | 发布输入集合 | stable 目录、canary 目录、历史 item、当前 item | S22 |
-| appcast generation | appcast generation 是本地过程，从已签名归档生成或更新 XML 更新目录。 | 本地过程 | 更新条目生成 | 当前 build、保留历史条目、HTTPS URL 前缀、有效 EdDSA 签名 | S22 |
-| Ed25519 | Ed25519 是签名算法，使用 32 字节私钥种子和 32 字节公钥生成与验证签名。 | 签名算法 | 密钥长度与签名验证 | 32 字节私钥种子、32 字节公钥、有效签名、无效签名 | S16 |
-| EdDSA | EdDSA 是使用椭圆曲线运算的数字签名算法族。 | 算法族 | 签名生成与验证 | 包含 Ed25519 | S20 |
-| ephemeral Ed25519 test key | ephemeral Ed25519 test key 是密钥对，只在自测临时目录中生成和删除。 | 密钥对 | 生命周期 | 自测开始时生成、自测结束时删除 | S16 |
-| Sparkle EdDSA self-test | Sparkle EdDSA self-test 是验证脚本，使用临时 Ed25519 测试密钥完成归档签名、归档验签、篡改拒绝、错误密钥拒绝、错误签名拒绝与 appcast gate 检查。 | 验证脚本 | 覆盖范围 | 通过、失败 | S16 |
-| SPARKLE_PUBLIC_KEY | SPARKLE_PUBLIC_KEY 是环境变量，值为 base64 编码的 32 字节 Ed25519 公钥。 | 环境变量 | 公钥值 | 32 字节 base64、缺失、格式无效 | S18 |
-| Sparkle public key injection | Sparkle public key injection 是发布步骤，把 `SPARKLE_PUBLIC_KEY` 写入 app bundle 的 Info.plist `SUPublicEDKey` 并在签名前校验。 | 发布步骤 | 写入位置与校验 | 归档后写入、签名前校验通过、缺失或长度不符失败 | S18 |
-| Sparkle key-pair gate | Sparkle key-pair gate 是验证脚本，使用 Ed25519 私钥种子导出公钥并比较发布公钥。 | 验证脚本 | 密钥对应关系 | 通过、格式错误、密钥不匹配 | S21 |
-| Sparkle archive public-key verification | Sparkle archive public-key verification 是验证步骤，使用 Ed25519 公钥检查 ZIP 内容与 EdDSA 签名。 | 验证步骤 | 签名有效性 | 通过、签名不匹配、签名格式错误、密钥格式错误 | S21 |
 | artifact manifest | artifact manifest 是 JSON 文件，记录一个发布产物的版本、构建环境、依赖 revision、二进制架构、公证 ID 与可选归档摘要。 | JSON 文件 | 发布可追溯性 | 必需字段、归档 path/bytes/SHA-256 | S21 |
 | deployment floor | deployment floor 是版本值，表示发布产物允许运行的最低 macOS 版本。 | 版本值 | 最低运行版本 | 26.0（当前）、27.0（已修订） | S7 |
 | Developer ID Application | Developer ID Application 是 Apple 颁发的证书类别，标识在 Mac App Store 外分发应用的开发团队。 | 证书类别 | 开发团队身份 | Apple 签发且在有效期内的团队身份 | S20 |
 | notarization | notarization 是 Apple 对提交的软件执行自动检查并返回接受或拒绝结果的服务。 | 软件检查服务 | 接受状态 | Accepted、Invalid、In Progress | S20 |
 | notarytool | notarytool 是 Xcode 附带的命令行工具，提交软件并查询 notarization 结果。 | 命令行工具 | 服务操作 | 保存凭据、提交、查询、取回日志 | S20 |
 | Keychain | Keychain 是 macOS 提供的凭据存储系统，保存证书、私钥和密码。 | 系统服务 | 凭据存储 | 证书、私钥、密码与访问控制 | S20 |
-| release preflight | release preflight 是签名发布前的检查脚本，验证签名身份、notarytool profile、Sparkle 输入、appcast 与 SUPublicEDKey。 | 验证脚本 | 前置条件 | 通过、缺少环境变量、缺少签名身份、缺少文件 | S12 |
+| release preflight | release preflight 是签名发布前的检查脚本，验证签名身份与 notarytool profile。 | 验证脚本 | 前置条件 | 通过、缺少环境变量、缺少签名身份、缺少凭据 | S12 |
 | 发布交接 | 发布交接是责任记录，列出维护者办理的生产资源、执行步骤和应提交的验证证据。 | 责任记录 | 责任分配 | 维护者执行、AI 实现、待提供证据 | S20 |
 | local Release candidate | local Release candidate 是使用 Release configuration 构建、仅供当前开发 Mac 安装验证的软件包。 | 软件包 | 签名与分发范围 | `Amethyst Dev` 签名、本机安装、未 notarized、不可公开发布 | S35 |
 | development signing identity | development signing identity 是本地代码签名身份，签名为 `Amethyst Dev`。 | 签名身份 | 签名标识 | `Amethyst Dev`、ad-hoc | S10 |
@@ -90,10 +74,7 @@
 
 ## Sources
 
-- S1: `Amethyst/AppDelegate.swift` uses `SUFeedURL`, `SUCanaryFeedURL`, and `UserConfiguration.useCanaryBuild()` to select Sparkle feed URLs.
-- S2: `docs/macos-27-adaptation-plan.md` WP3 and WP6 require stable/canary feed selection and Sparkle archive/feed verification.
 - S3: `Amethyst/Managers/WindowTransitionCoordinator.swift` defines `SpaceCommandAvailability` and `spaceCommandAvailability()`; `Amethyst/AppDelegate.swift` displays its disabled reason in the status menu.
-- S4: `Scripts/verify-appcast.sh` performs the appcast checks; `Scripts/test-verify-appcast.sh` verifies the gate rejects invalid feeds.
 - S5: `Amethyst/Preferences/UserConfiguration.swift` defines `ConfigurationFileLoad` and parse helpers that produce configuration load diagnostics.
 - S6: `Amethyst/AppDelegate.swift` defines `RuntimeStatusPresentation` and `updateRuntimeStatusItems()`.
 - S7: `Amethyst.xcodeproj/project.pbxproj` and `Scripts/verify-support-contract.sh` define the current 26.0 deployment floor.
@@ -105,13 +86,11 @@
 - S13: `Amethyst/Layout/Layouts/CustomLayout.swift` logs the custom layout file path on load failure.
 - S14: `Amethyst/Model/Space.swift` defines `isUserSpace`; macOS 26 reports user desktops with type 4.
 - S15: `Scripts/dev-build.sh` builds, signs with the development identity, and optionally relaunches; `Amethyst/Managers/ScreenManager.swift` persists `currentLayoutIndexBySpaceUUID`.
-- S16: `Scripts/test-sparkle-eddsa.sh` generates an ephemeral Ed25519 key with OpenSSL, signs and verifies a test archive with Sparkle `sign_update`, and feeds the signature through `Scripts/verify-appcast.sh`; `.github/workflows/tests.yml` runs it after unit tests.
 - S17: `AmethystTests/Tests/Managers/ScreenManagerTests.swift` verifies that layout indices are isolated per Space UUID and encoded for multiple Spaces.
-- S18: `Scripts/inject-sparkle-public-key.sh` writes and validates `SUPublicEDKey`; `Scripts/test-inject-sparkle-public-key.sh` covers replacement and rejection paths; `Scripts/release-preflight.sh --post-archive` verifies the injected key before signing.
+- S18: `Amethyst/Amethyst-Info.plist` defines the bundle metadata; `Scripts/ci-archive.sh` inspects the built bundle before distribution.
 - S19: `Amethyst/Managers/ScreenManager.swift` loads a Space's layouts before its selection and resolves saved indices through encoded keys; `AmethystTests/Tests/Managers/ScreenManagerTests.swift` exercises actual encoding/decoding across displays, Spaces, and changed lists.
-- S20: `docs/release-maintainer-handoff.md`; Apple Developer ID and notarization documentation; Sparkle documentation; local `notarytool store-credentials --help` and Sparkle `generate_keys --help`.
-- S21: `Scripts/verify-sparkle-key-pair.sh` validates a Sparkle private seed against its public key; `Scripts/verify-sparkle-archive-public-key.sh` verifies an archive with its public key; `Scripts/generate-artifact-manifest.sh` records archive and dependency evidence; their self-tests exercise acceptance and failure paths.
-- S22: `Scripts/generate-appcast.sh` invokes Sparkle `generate_appcast` with a paired key and HTTPS prefixes; `Scripts/test-generate-appcast.sh` covers generation, repeated build updates, URL rejection, and mismatched-key rejection.
+- S20: `docs/release-maintainer-handoff.md`; Apple Developer ID and notarization documentation; local `notarytool store-credentials --help`.
+- S21: `Scripts/generate-artifact-manifest.sh` records archive and dependency evidence; its self-test exercises acceptance and failure paths.
 - S23: `Amethyst/Managers/ScreenManager.swift` defines `SpaceReflowPolicy`; `Amethyst/Managers/Windows.swift` selects current-display windows when Space data is unavailable; associated ScreenManager and CGSpacesInfo tests cover the degradation boundary.
 - S24: `Scripts/test-release-custom-layouts.sh` runs `CustomLayoutTests` in Release configuration with `ENABLE_TESTABILITY=YES`; CI executes the script after Debug tests.
 - S25: `Amethyst/AppDelegate.swift` defines `LayoutStateRestorePresentation` and adds the title to runtime status items; `docs/macos-27-support.md` documents the recovery action.

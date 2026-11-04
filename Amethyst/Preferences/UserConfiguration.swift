@@ -110,7 +110,6 @@ enum ConfigurationKey: String {
     case layoutHUDOnSpaceChange = "enables-layout-hud-on-space-change"
     case windowCountHUD = "enables-window-count-hud"
     case newWindowsToMainHUD = "enables-new-windows-to-main-hud"
-    case useCanaryBuild = "use-canary-build"
     case newWindowsToMain = "new-windows-to-main"
     case followSpaceThrownWindows = "follow-space-thrown-windows"
     case windowResizeStep = "window-resize-step"
@@ -744,10 +743,6 @@ class UserConfiguration: NSObject {
 
     func enablesNewWindowsToMainHUD() -> Bool {
         return storage.bool(forKey: .newWindowsToMainHUD)
-    }
-
-    func useCanaryBuild() -> Bool {
-        return storage.bool(forKey: .useCanaryBuild)
     }
 
     func windowMarginSize() -> CGFloat {

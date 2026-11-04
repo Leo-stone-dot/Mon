@@ -11,7 +11,6 @@ import RxCocoa
 import RxSwift
 import ServiceManagement
 import Silica
-import Sparkle
 import SwiftyBeaver
 
 struct LoginItemPresentation: Equatable {
@@ -59,28 +58,6 @@ struct LoginItemPresentation: Equatable {
 
     var needsManualAction: Bool {
         return guidance != nil
-    }
-}
-
-struct SparkleFeedConfiguration {
-    static let stableFeedKey = "SUFeedURL"
-    static let canaryFeedKey = "SUCanaryFeedURL"
-
-    static func feedKey(useCanaryBuild: Bool) -> String {
-        return useCanaryBuild ? canaryFeedKey : stableFeedKey
-    }
-
-    static func feedURLString(useCanaryBuild: Bool, infoDictionary: [String: Any]?) -> String? {
-        let key = feedKey(useCanaryBuild: useCanaryBuild)
-        guard let feedURLString = infoDictionary?[key] as? String,
-              let url = URL(string: feedURLString),
-              url.scheme == "https",
-              url.host != nil
-        else {
-            return nil
-        }
-
-        return feedURLString
     }
 }
 
@@ -228,12 +205,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     var windowManager: WindowManager<SIApplication>?
     private var hotKeyManager: HotKeyManager<SIApplication>?
-    private lazy var updaterController = SPUStandardUpdaterController(
-        startingUpdater: false,
-        updaterDelegate: self,
-        userDriverDelegate: nil
-    )
-
     fileprivate var statusItem: NSStatusItem?
     @IBOutlet var statusItemMenu: NSMenu?
     @IBOutlet var versionMenuItem: NSMenuItem?
@@ -261,10 +232,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserConfiguration.shared.delegate = self
         UserConfiguration.shared.load()
         UserConfiguration.shared.tilingEnabled = !UserConfiguration.shared.startWithTilingDisabled()
-
-        #if RELEASE
-            updaterController.startUpdater()
-        #endif
 
         presentLoginItemMigrationNoticeIfNecessary()
 
@@ -437,12 +404,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         presentDotfileWarningIfNecessary()
     }
 
-    @IBAction func checkForUpdates(_ sender: AnyObject) {
-        #if RELEASE
-            updaterController.checkForUpdates(sender)
-        #endif
-    }
-
     private func refreshStartAtLoginMenuItem() {
         guard let menuItem = startAtLoginMenuItem else {
             return
@@ -594,19 +555,5 @@ extension AppDelegate: UserConfigurationDelegate {
 
     func configurationAccessibilityPermissionsDidChange(_ userConfiguration: UserConfiguration) {
         windowManager?.reevaluateWindows()
-    }
-}
-
-extension AppDelegate: SPUUpdaterDelegate {
-    func feedURLString(for updater: SPUUpdater) -> String? {
-        let useCanaryBuild = UserConfiguration.shared.useCanaryBuild()
-        guard let feedURLString = SparkleFeedConfiguration.feedURLString(
-            useCanaryBuild: useCanaryBuild,
-            infoDictionary: Bundle.main.infoDictionary
-        ) else {
-            log.error("Sparkle feed URL \(SparkleFeedConfiguration.feedKey(useCanaryBuild: useCanaryBuild)) is missing, malformed, or not HTTPS in Info.plist")
-            return nil
-        }
-        return feedURLString
     }
 }

@@ -6,6 +6,10 @@
 
 Tiling window manager for macOS along the lines of [xmonad](https://xmonad.org/).
 
+> This repository is a personal fork of [ianyh/Amethyst](https://github.com/ianyh/Amethyst).
+> It is not the official Amethyst build; the official downloads and support
+> remain with the upstream project.
+
 ![Windows](https://ianyh.com/amethyst/images/windows.png)
 
 If you want to learn more about tiling window managers and the features of Amethyst there are some great community resources on YouTube.
@@ -14,16 +18,13 @@ If you want to learn more about tiling window managers and the features of Ameth
 
 ## Getting Amethyst
 
-Amethyst is available for direct download on the [releases page](https://github.com/ianyh/Amethyst/releases) or using [homebrew cask](https://github.com/Homebrew/homebrew-cask).
+This fork builds from source; it does not publish an automatic update channel.
+Build the app locally with the steps below and copy it to `/Applications`.
 
-```
-brew install --cask amethyst
-```
-
-Amethyst supports macOS 26 or later on Apple silicon. Release artifacts contain
+The fork targets macOS 26 or later on Apple silicon. Release artifacts contain
 only the `arm64` architecture; Intel Macs, Rosetta, and macOS 25 or earlier are
-not supported. The final Intel-compatible release remains available from the
-[releases page](https://github.com/ianyh/Amethyst/releases) for existing users.
+not supported. Official Amethyst releases for other configurations remain
+available from the [upstream releases page](https://github.com/ianyh/Amethyst/releases).
 
 ## Using Amethyst
 
@@ -224,9 +225,8 @@ performs the explicit opt-in rewrite.
 
 Unsigned archive gates are built through [`fastlane`](https://github.com/fastlane/fastlane)
 with `bundle exec fastlane mac`. Signed release candidates use
-`bundle exec fastlane release` and require Developer ID, notarytool, and Sparkle
-EdDSA inputs in the environment, including a staging appcast path for static
-feed verification.
+`bundle exec fastlane release` and require a Developer ID signing identity and a
+notarytool keychain profile. There is no in-app updater or feed in this fork.
 
 ## Contributing
 

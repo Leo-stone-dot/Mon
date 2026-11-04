@@ -30,7 +30,6 @@ Amethyst will pick up a config file located at `~/.amethyst.yml` or `~/.config/a
 | `enables-layout-hud-on-space-change` | `true` to display the name of the layout when moving to a new space (default `true`). |
 | `enables-window-count-hud` | `true` to display notifications when window max count changes (default `false`). |
 | `enables-new-windows-to-main-hud` | `true` to display notifications when new windows to main setting changes (default `false`). |
-| `use-canary-build` | `true` to get updates to beta versions of the software (default `false`). |
 | `new-windows-to-main` | `true` to insert new windows into the first position and `false` to insert new windows into the last position (default `false`). |
 | `follow-space-thrown-windows` | `true` to automatically move to a space when throwing a window to it (default `true`). | 
 | `window-resize-step` | The integer percentage of the screen dimension to increment and decrement main pane ratios by (default `5`). |

@@ -48,7 +48,7 @@ failure.
 To reset Accessibility state for a clean validation run:
 
 ```bash
-tccutil reset Accessibility com.amethyst.Amethyst
+tccutil reset Accessibility com.totoleo.Amethyst
 ```
 
 After resetting, quit and relaunch Amethyst, grant Accessibility again, and

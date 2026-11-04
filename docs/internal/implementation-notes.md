@@ -1163,3 +1163,25 @@ Displays 页在 `viewWillAppear` 注册 `NSWorkspace.activeSpaceDidChangeNotific
 ### 测试与验证结果
 
 脱敏后在工作区（排除 `build/` 与 `.git/`）搜索不到原显示器标识；文档改动不影响代码，未重跑测试。
+
+## 2026-11-04 16:27 CST 独立 fork 身份与移除 Sparkle
+
+### 发现的事实
+
+应用仍使用上游的 `com.amethyst.Amethyst`、`0.24.3 (129)`、`ianyh.com` 的 Sparkle feed，并依赖 Sparkle 包与更新菜单。维护者决定走独立 fork 路线，明确不要 Sparkle 更新渠道，bundle 改为 `com.totoleo.Amethyst`，版本改为 `0.25.0`。
+
+### 偏离原计划
+
+原 fork 清单计划更换 feed 与 Sparkle 密钥；维护者改为完全移除更新渠道，因此直接删除 Sparkle 依赖、菜单项、canary 设置与相关脚本，而不是替换 feed。
+
+### AI 自作主张的决策
+
+移除 `import Sparkle`、`SPUStandardUpdaterController`、`SparkleFeedConfiguration`、检查更新菜单、`use-canary-build` 配置、Debug 页的更新选项、Sparkle 包依赖与 Package.resolved 条目；删除 appcast、密钥注入、密钥配对、EdDSA 自测等 10 个脚本；简化 release pipeline 与 preflight 为 Developer ID + notarytool；CI 去掉 Sparkle 步骤；README/configuration/glossary 同步清理。安装时把旧的 `com.amethyst.Amethyst` UserDefaults 导入到 `com.totoleo.Amethyst`，保留布局与快捷键配置。
+
+### 需要人类复核的点
+
+旧 bundle id 的登录项/BTM 与 TCC 条目可能仍残留，需要确认是否手动清理；`docs/macos-27-*` 与 `release-maintainer-handoff.md` 仍含 Sparkle 内容，尚未改写；设置已自动迁移，如需全新状态可删除 `com.totoleo.Amethyst` 域后重来。
+
+### 测试与验证结果
+
+`Scripts/dev-test.sh` 完成 281 tests、0 failures（移除了 5 个 Sparkle feed 测试）；`Scripts/lint.sh` 0 violations；Release 构建与 `Scripts/sign-dev-app.sh` 签名通过，安装到 `/Applications/Amethyst.app` 后 `CFBundleIdentifier=com.totoleo.Amethyst`、版本 `0.25.0 (130)`，`--debug-info` 显示 Accessibility trusted、二进制中无 Sparkle 字符串，launchd 出现 `application.com.totoleo.Amethyst` 登录项。

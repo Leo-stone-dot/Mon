@@ -17,7 +17,6 @@
 		4006CF901CE017BA004CA512 /* UserConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4006CF8F1CE017BA004CA512 /* UserConfiguration.swift */; };
 		400A5E9D2327350C00F0A2C3 /* Space.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400A5E9C2327350C00F0A2C3 /* Space.swift */; };
 		400D48F42A92AF1E0082750F /* Cartography in Frameworks */ = {isa = PBXBuildFile; productRef = 400D48F32A92AF1E0082750F /* Cartography */; };
-		400D48FA2A92B0130082750F /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 400D48F92A92B0130082750F /* Sparkle */; };
 		400D48FD2A92B06B0082750F /* SwiftyJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 400D48FC2A92B06B0082750F /* SwiftyJSON */; };
 		400D49002A92B0A00082750F /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 400D48FF2A92B0A00082750F /* Yams */; };
 		400F2DF32AABF4FC00C1AAE2 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 400F2DF22AABF4FC00C1AAE2 /* KeyboardShortcuts */; };
@@ -287,7 +286,6 @@
 				40C3F91E1BD1B22E00F58660 /* Security.framework in Frameworks */,
 				40E2D2302D544F1E00D16B87 /* Silica in Frameworks */,
 				40CF37C029B440A100CDB07A /* ArgumentParser in Frameworks */,
-				400D48FA2A92B0130082750F /* Sparkle in Frameworks */,
 				400F2DF32AABF4FC00C1AAE2 /* KeyboardShortcuts in Frameworks */,
 				40EFFB4A2F0226EF00EDD929 /* Silica in Frameworks */,
 				402F6FA62A81C9E30036B512 /* SkyLight.framework in Frameworks */,
@@ -636,7 +634,6 @@
 			packageProductDependencies = (
 				40CF37BF29B440A100CDB07A /* ArgumentParser */,
 				400D48F32A92AF1E0082750F /* Cartography */,
-				400D48F92A92B0130082750F /* Sparkle */,
 				400D48FC2A92B06B0082750F /* SwiftyJSON */,
 				400D48FF2A92B0A00082750F /* Yams */,
 				40AE15E22A92E9AF00E14536 /* SwiftyBeaver */,
@@ -711,7 +708,6 @@
 			packageReferences = (
 				40CF37BE29B440A100CDB07A /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
 				400D48F22A92AF1E0082750F /* XCRemoteSwiftPackageReference "Cartography" */,
-				400D48F82A92B0130082750F /* XCRemoteSwiftPackageReference "Sparkle" */,
 				400D48FB2A92B06A0082750F /* XCRemoteSwiftPackageReference "SwiftyJSON" */,
 				400D48FE2A92B0A00082750F /* XCRemoteSwiftPackageReference "Yams" */,
 				40AE15E12A92E9AF00E14536 /* XCRemoteSwiftPackageReference "SwiftyBeaver" */,
@@ -1026,7 +1022,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 129;
+				CURRENT_PROJECT_VERSION = 130;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEFINES_MODULE = YES;
@@ -1046,11 +1042,11 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.24.3;
+				MARKETING_VERSION = 0.25.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++14";
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"DEBUG\"";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.amethyst.${PRODUCT_NAME:rfc1034identifier}";
+				PRODUCT_BUNDLE_IDENTIFIER = com.totoleo.Amethyst;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "";
@@ -1070,7 +1066,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 129;
+				CURRENT_PROJECT_VERSION = 130;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEFINES_MODULE = YES;
@@ -1091,12 +1087,12 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.24.3;
+				MARKETING_VERSION = 0.25.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++14";
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"RELEASE\"";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.amethyst.${PRODUCT_NAME:rfc1034identifier}";
+				PRODUCT_BUNDLE_IDENTIFIER = com.totoleo.Amethyst;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "";
@@ -1129,7 +1125,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.amethyst.AmethystTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totoleo.AmethystTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "AmethystTests/AmethystTests-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1163,7 +1159,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.amethyst.AmethystTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.totoleo.AmethystTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "AmethystTests/AmethystTests-Bridging-Header.h";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Amethyst.app/Contents/MacOS/Amethyst";
@@ -1209,14 +1205,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 4.0.0;
-			};
-		};
-		400D48F82A92B0130082750F /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
 			};
 		};
 		400D48FB2A92B06A0082750F /* XCRemoteSwiftPackageReference "SwiftyJSON" */ = {
@@ -1298,11 +1286,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 400D48F22A92AF1E0082750F /* XCRemoteSwiftPackageReference "Cartography" */;
 			productName = Cartography;
-		};
-		400D48F92A92B0130082750F /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 400D48F82A92B0130082750F /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
 		};
 		400D48FC2A92B06B0082750F /* SwiftyJSON */ = {
 			isa = XCSwiftPackageProductDependency;

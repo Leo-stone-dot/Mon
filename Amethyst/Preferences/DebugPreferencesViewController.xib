@@ -38,43 +38,11 @@
                         <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
-                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Obp-aZ-loC">
-                    <rect key="frame" x="129" y="48" width="59" height="16"/>
-                    <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" alignment="right" title="Updates:" id="aY2-1D-UHQ">
-                        <font key="font" metaFont="system"/>
-                        <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                        <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                    </textFieldCell>
-                </textField>
-                <button translatesAutoresizingMaskIntoConstraints="NO" id="ccm-Kv-UDb">
-                    <rect key="frame" x="192" y="47" width="166" height="18"/>
-                    <buttonCell key="cell" type="check" title="Get development builds" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="NTI-ED-2OH">
-                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                        <font key="font" metaFont="system"/>
-                    </buttonCell>
-                    <connections>
-                        <binding destination="eeU-g1-X9P" name="value" keyPath="values.use-canary-build" id="X6W-b5-aB9"/>
-                    </connections>
-                </button>
-                <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="ZpS-zQ-snc">
-                    <rect key="frame" x="192" y="31" width="240" height="14"/>
-                    <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="You must relaunch for changes to take effect" id="KfR-Yz-Cyo">
-                        <font key="font" metaFont="message" size="11"/>
-                        <color key="textColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
-                        <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                    </textFieldCell>
-                </textField>
             </subviews>
             <constraints>
                 <constraint firstItem="ZJk-hd-85X" firstAttribute="centerY" secondItem="SqR-cf-d23" secondAttribute="centerY" id="AO0-O9-SDm"/>
-                <constraint firstItem="ccm-Kv-UDb" firstAttribute="leading" secondItem="Obp-aZ-loC" secondAttribute="trailing" constant="8" id="Imf-jN-s5E"/>
-                <constraint firstItem="Obp-aZ-loC" firstAttribute="top" secondItem="SqR-cf-d23" secondAttribute="bottom" constant="8" id="aD9-tN-NZZ"/>
-                <constraint firstItem="ZpS-zQ-snc" firstAttribute="leading" secondItem="ccm-Kv-UDb" secondAttribute="leading" id="aGo-GY-M8k"/>
-                <constraint firstItem="Obp-aZ-loC" firstAttribute="trailing" secondItem="SqR-cf-d23" secondAttribute="trailing" id="iQt-Di-918"/>
                 <constraint firstItem="ZJk-hd-85X" firstAttribute="leading" secondItem="SqR-cf-d23" secondAttribute="trailing" constant="8" id="kLt-s8-MN2"/>
                 <constraint firstItem="SqR-cf-d23" firstAttribute="top" secondItem="gFQ-ju-I7J" secondAttribute="top" constant="30" id="nAy-P9-niV"/>
-                <constraint firstItem="ZpS-zQ-snc" firstAttribute="top" secondItem="ccm-Kv-UDb" secondAttribute="bottom" constant="4" id="ncb-Nv-snX"/>
-                <constraint firstItem="ccm-Kv-UDb" firstAttribute="centerY" secondItem="Obp-aZ-loC" secondAttribute="centerY" id="oRf-Xv-P3N"/>
                 <constraint firstAttribute="trailing" secondItem="SqR-cf-d23" secondAttribute="trailing" constant="362" id="wLG-jc-7HM"/>
             </constraints>
             <point key="canvasLocation" x="561" y="24"/>

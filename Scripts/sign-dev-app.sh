@@ -19,7 +19,7 @@ codesign \
     --force \
     --deep \
     --sign "$identity_name" \
-    --identifier com.amethyst.Amethyst \
+    --identifier com.totoleo.Amethyst \
     --timestamp=none \
     "$app_path"
 

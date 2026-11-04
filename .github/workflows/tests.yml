@@ -26,12 +26,6 @@ jobs:
         run: Scripts/verify-support-contract.sh
       - name: Verify toolchain locks
         run: Scripts/verify-toolchain-locks.sh
-      - name: Test appcast gate
-        run: Scripts/test-verify-appcast.sh
-      - name: Test Sparkle public key injection
-        run: Scripts/test-inject-sparkle-public-key.sh
-      - name: Test Sparkle public and private key pairing
-        run: Scripts/test-verify-sparkle-key-pair.sh
       - name: Test release preflight
         run: Scripts/test-release-preflight.sh
       - name: Test artifact manifest archive digest
@@ -40,10 +34,6 @@ jobs:
         run: Scripts/lint.sh
       - name: Build and run unit tests
         run: Scripts/ci-build-and-test.sh
-      - name: Test Sparkle EdDSA signing
-        run: Scripts/test-sparkle-eddsa.sh
-      - name: Test appcast generation
-        run: Scripts/test-generate-appcast.sh
       - name: Test Release custom layouts
         run: Scripts/test-release-custom-layouts.sh
       - name: Build and inspect Release archive

@@ -225,7 +225,6 @@
     "window-minimum-width": 0,
     "window-max-count": 0,
     "ignore-menu-bar": false,
-    "use-canary-build": false,
     "new-windows-to-main": false,
     "follow-space-thrown-windows": true,
     "screen-padding-top": 0,

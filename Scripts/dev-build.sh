@@ -29,7 +29,7 @@ Scripts/bootstrap-dev-signing.sh >/dev/null
 Scripts/sign-dev-app.sh
 
 if [[ "$run_after_build" == true ]]; then
-    osascript -e 'tell application id "com.amethyst.Amethyst" to quit' >/dev/null 2>&1 || true
+    osascript -e 'tell application id "com.totoleo.Amethyst" to quit' >/dev/null 2>&1 || true
     sleep 1
     open build/DerivedData/Build/Products/Debug/Amethyst.app
     echo "relaunched Amethyst with the development-signed build"
