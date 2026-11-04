@@ -1014,7 +1014,7 @@ ScreenManagerDelegate 新增 persistent state change callback；WindowManager �
 
 ### 发现的事实
 
-安装新构建并重启后，主显示器没有生成桌面状态键，`EncodedWindowManager` 仍只包含两个 fullscreen Space 的条目。原因是 `updateSpace` 只由 `activeSpaceDidChange` 触发，启动阶段或全屏 Space 期间的切换通知可能丢失；此时 `space` 保持 nil，reflow 用的是全局列表首个布局，与保存状态不一致。补上 reflow 前的当前 Space 读取后，主显示器写出了 `display:B7C48C49-…` 键，tiling 为 false，布局索引 0。
+安装新构建并重启后，主显示器没有生成桌面状态键，`EncodedWindowManager` 仍只包含两个 fullscreen Space 的条目。原因是 `updateSpace` 只由 `activeSpaceDidChange` 触发，启动阶段或全屏 Space 期间的切换通知可能丢失；此时 `space` 保持 nil，reflow 用的是全局列表首个布局，与保存状态不一致。补上 reflow 前的当前 Space 读取后，主显示器写出了 `display:<display-uuid>` 键，tiling 为 false，布局索引 0。
 
 ### 偏离原计划
 
@@ -1030,7 +1030,7 @@ Displays 偏好页只做了构造级测试，无法在本机截屏，需要维�
 
 ### 测试与验证结果
 
-`Scripts/dev-test.sh` 完成 284 tests、0 failures，结果为 `build/dev-test-evidence/20261104T061657Z.xcresult`。`Scripts/lint.sh` 0 violations，`git diff --check` 无输出。Release 构建与 `Scripts/sign-dev-app.sh` 签名通过，`/Applications/Amethyst.app` 的 `codesign --verify --deep --strict` 通过，进程从该路径启动。安装后持久化状态新增 `display:B7C48C49-FFAD-4431-9247-E27999D855A0` 键。
+`Scripts/dev-test.sh` 完成 284 tests、0 failures，结果为 `build/dev-test-evidence/20261104T061657Z.xcresult`。`Scripts/lint.sh` 0 violations，`git diff --check` 无输出。Release 构建与 `Scripts/sign-dev-app.sh` 签名通过，`/Applications/Amethyst.app` 的 `codesign --verify --deep --strict` 通过，进程从该路径启动。安装后持久化状态新增 `display:<display-uuid>` 键。
 
 ## 2026-11-04 14:20 CST 空 UUID 桌面的布局索引键修正
 
@@ -1141,3 +1141,25 @@ Displays 页在 `viewWillAppear` 注册 `NSWorkspace.activeSpaceDidChangeNotific
 ### 测试与验证结果
 
 `Scripts/dev-test.sh` 完成 286 tests、0 failures；更新了删除布局与移除布局相关的解码测试以匹配“保留 Space 专属布局”的新语义。`Scripts/lint.sh` 0 violations；`git diff --check` 无输出；Release 构建通过（仅第三方 Silica umbrella header 警告），签名后安装到 `/Applications/Amethyst.app`，`codesign --verify --deep --strict` 与 SHA-256 一致性通过，应用已重启。
+
+## 2026-11-04 16:06 CST 内部记录脱敏
+
+### 发现的事实
+
+`docs/internal/implementation-notes.md` 含两处主显示器标识（一处完整、一处截断），属于设备级标识；仓库其他文档未发现用户名、家目录、邮箱、IP、内网地址或密钥。PID、构建路径、macOS/Xcode 版本与 DMG 摘要属于环境信息，保留用于复现。
+
+### 偏离原计划
+
+按 append-only 约定历史 milestone 不应改写；按维护者要求，对其中两处显示器标识做最小脱敏，保留语义与上下文。
+
+### AI 自作主张的决策
+
+只替换显示器标识为 `<display-uuid>`，不改写其余历史内容；PID、构建路径与环境版本保留。
+
+### 需要人类复核的点
+
+已提交的历史（`808fe88` 及更早）仍包含原显示器标识。如果公开仓库连带历史发布，需要用 `git filter-repo` 清理或从干净历史重新发布；当前只清理了工作区文件。
+
+### 测试与验证结果
+
+脱敏后在工作区（排除 `build/` 与 `.git/`）搜索不到原显示器标识；文档改动不影响代码，未重跑测试。
