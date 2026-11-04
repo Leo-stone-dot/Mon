@@ -1251,3 +1251,91 @@ Displays 页在 `viewWillAppear` 注册 `NSWorkspace.activeSpaceDidChangeNotific
 ### 测试与验证结果
 
 所有新增和修改的 shell 脚本通过 `bash -n`。`dev-build.sh` 构建 Debug 并显示 `Authority=Amethyst Dev`；`user-install.sh --no-run` 在隔离安装路径完成 Release 构建、`Authority=Mon Dev`、`codesign --verify --deep --strict` 与版本 `0.25.0` 验证；`ci-build.sh` 完整执行 281 tests、lint、Release custom layout、unsigned archive 与 manifest gates 并通过。仅有既有第三方 Silica umbrella-header warnings。
+
+## 2026-11-04 17:41 CST GitHub hosted CI 与非协作项目模型
+
+### 发现的事实
+
+GitHub 仓库已改名为 `Leo-stone-dot/Mon`，但本地 origin 仍指向旧地址；workflow 依赖仓库未配置的 self-hosted runner。GitHub `actions/runner-images` 当前提供公开预览的 Arm64 `xcode-27` label，系统为 macOS 27.0.1，包含 Xcode 27.2（路径 `/Applications/Xcode_27.2.app`）和 macOS 27.2 SDK。维护者明确不接受 PR，仓库用途是供他人参考并自行用 AI 修改。
+
+### 偏离原计划
+
+原计划配置或维护 self-hosted runner；改为使用 GitHub-hosted `xcode-27` preview，并移除物理 runner job 与 pull_request 触发。
+
+### AI 自作主张的决策
+
+origin 更新为 `git@github.com:Leo-stone-dot/Mon.git`。workflow 改为 push 到 development 或手动触发，使用 `runs-on: xcode-27`、只读 contents permission，并固定 `DEVELOPER_DIR=/Applications/Xcode_27.2.app/Contents/Developer`；删除无 runner 可执行的 physical job。README 将 Contributing 改为 Project model，明确不接受 PR，建议 fork 后用 AI 自行定制。未 push，由维护者决定何时公开这些本地提交。
+
+### 需要人类复核的点
+
+`xcode-27` 当前是 GitHub public preview label，未来可能更名或退役；首次 push 后需要观察实际 workflow 是否获得该 runner。仓库目前无 self-hosted runner。
+
+### 测试与验证结果
+
+通过 GitHub API 验证 `Leo-stone-dot/Mon` 为 public、默认分支 development、Actions 已启用、self-hosted runner 数量为 0；通过官方 `actions/runner-images` 仓库确认 `xcode-27` label、Xcode 27.2 路径与 macOS 27.2 SDK。workflow 尚未 push，因此未在 GitHub-hosted runner 实际执行。
+
+## 2026-11-04 17:44 CST 源码 GitHub Release 工作流
+
+### 发现的事实
+
+维护者不准备 Developer ID/notarytool，也不接受 PR；GitHub Release 仍需要一个不会误导用户信任状态的发布方式。仓库的 Issues 已关闭但 Projects 仍开启，Actions 已启用。公开 `xcode-27` runner 可承担 tag 验证和 CI gates。
+
+### 偏离原计划
+
+原发布设计要求 Developer ID signed ZIP；按维护者决定改为默认 source-only GitHub Release，不发布 unsigned 或 `Mon Dev` 本地自签名 app bundle。
+
+### AI 自作主张的决策
+
+新增手动触发的 `.github/workflows/release.yml`：要求已有 `vMAJOR.MINOR.PATCH` tag，checkout tag 后在 `xcode-27` 运行完整 `ci-build.sh`，再由 `Scripts/github-release.sh` 校验 tag 与 MARKETING_VERSION 一致、生成 release notes 并创建 source-only Release；仅上传 build evidence 作为 workflow artifact，不挂到公开 Release。README 明确 source-only 策略和用户通过 `user-install.sh` 自行构建安装。GitHub Projects 已关闭，Issues/Wiki 保持关闭，fork 保持允许。
+
+### 需要人类复核的点
+
+workflow 必须在维护者 push 这些提交和 tag 后手动执行；`xcode-27` 是 preview label。GitHub 无法彻底禁止 fork 所有者发起 PR，但仓库不配置 pull_request workflow，README 明确不接受 PR。
+
+### 测试与验证结果
+
+两个 workflow 通过 Ruby YAML 解析，新增脚本通过 `bash -n`；`github-release.sh` 对非法 tag 返回 64；通过 GitHub API 确认 Actions enabled、Issues/Projects/Wiki 关闭、fork enabled。未实际创建 tag 或 GitHub Release。
+
+## 2026-11-04 18:58 CST Xcode 产品身份残留清理
+
+### 发现的事实
+
+`Mon.xcodeproj/project.pbxproj` 的有效 build settings 已生成 Mon.app，但 PBX product file reference、PBXNativeTarget 的 `productName`、target/group object comments 以及 project/target configuration-list comments 仍保留 Amethyst 名称。Xcode 当前通过 `PRODUCT_NAME=Mon` 掩盖这些内部不一致，后续由 Xcode 重写工程时存在名称回退或噪声 diff 风险。
+
+### 偏离原计划
+
+原历史整理目标要求最终 tree 不变；维护者明确要求先清理这些残留，因此新的历史重写基线改为清理后的 HEAD。
+
+### AI 自作主张的决策
+
+只替换 project.pbxproj 中指向当前产品、target、source group 与 configuration list 的 Amethyst 名称为 Mon；不替换上游归属、legacy 配置兼容、历史 implementation notes 或 `Amethyst Dev` 本地签名身份。
+
+### 需要人类复核的点
+
+无。
+
+### 测试与验证结果
+
+Xcode stale-identity scan 不再命中 `Amethyst.app`、`productName = Amethyst`、Amethyst target/project comments；`xcodebuild -workspace Mon.xcworkspace -list -json` 识别 Mon 与 Mon Debug CLI schemes；Release build settings 为 Mon.app、module Mon、bundle `com.totoleo.Mon`，测试 host 为 Mon.app/Contents/MacOS/Mon；support/toolchain gates 通过；`Scripts/dev-test.sh` 完成 281 tests、0 failures，证据为 `build/dev-test-evidence/20261104T105747Z.xcresult`。
+
+## 2026-11-04 19:11 CST 排除 clarification 临时目录
+
+### 发现的事实
+
+clarify-mode 会在仓库根目录生成 `wishes/` 会话材料；该目录不属于产品、公开文档或维护证据，且此前会作为未跟踪文件出现在 git status。
+
+### 偏离原计划
+
+历史重写基线原定为 Xcode 产品身份清理后的 HEAD；维护者新增要求 `wishes/` 不进入 Git，因此基线需在 `.gitignore` 修正后再次更新。
+
+### AI 自作主张的决策
+
+删除当前未跟踪的 `wishes/`，并在 `.gitignore` 增加根目录 `wishes/` 规则；不提交目录内容。
+
+### 需要人类复核的点
+
+无。
+
+### 测试与验证结果
+
+`git check-ignore -v wishes/example` 命中 `.gitignore` 的 `wishes/` 规则；当前 git status 不再显示 wishes 内容。

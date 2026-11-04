@@ -1,0 +1,41 @@
+name: Publish source release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing semantic version tag, for example v0.25.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-publish:
+    name: Validate and publish source-only release
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - name: Checkout requested tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - name: Bootstrap pinned tools
+        run: Scripts/bootstrap-tools.sh
+      - name: Run CI build gates
+        run: Scripts/ci-build.sh
+      - name: Publish source-only GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: Scripts/github-release.sh "${{ inputs.tag }}"
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.tag }}-build-evidence
+          path: |
+            build/environment
+            build/release-manifest.json

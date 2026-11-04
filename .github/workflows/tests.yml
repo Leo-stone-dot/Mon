@@ -3,15 +3,17 @@ name: Xcode 27 gates
 on:
   push:
     branches: [ development ]
-  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   sdk-build-and-test:
     name: Xcode 27.2 / SDK 27.2 / arm64
-    # These labels intentionally describe the real runner contract. A hosted
-    # label is not a substitute until GitHub publishes this exact environment.
-    runs-on: [self-hosted, macOS, ARM64, xcode-27.2, macos-26, ci]
+    # GitHub's public preview Xcode 27 Arm64 image currently provides macOS
+    # 27.0.1 and Xcode 27.2. Pin DEVELOPER_DIR because 27.1 is the image default.
+    runs-on: xcode-27
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
 
@@ -28,26 +30,3 @@ jobs:
         with:
           name: xcode-27-build-environment
           path: build/environment
-
-  macos-27-runtime-contracts:
-    name: macOS 27.2 physical runner preflight
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: [self-hosted, macOS, ARM64, xcode-27.2, macos-27.2, physical]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Record and verify physical runner
-        run: Scripts/verify-physical-runner.sh
-      - name: Capture physical validation evidence
-        if: always()
-        run: Scripts/capture-physical-validation-evidence.sh build/physical-validation
-      - name: Upload physical validation evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-27-physical-validation
-          path: build/physical-validation
-
-  # AX/TCC/CGS scenarios will be added here as WP2 lands. Physical execution is
-  # opt-in because it changes permission and Space state on a dedicated Mac.
-

@@ -63,6 +63,7 @@
 | user self-installation build | user self-installation build 是 Release configuration 的本机安装产物。 | 软件包 | 签名与安装 | `Mon Dev` 签名、安装到 `/Applications/Mon.app`、未 notarized | S39 |
 | CI build | CI build 是不创建本地身份且不安装应用的自动验证过程。 | 构建过程 | 环境副作用 | unsigned、测试与 archive gates、无用户环境变更 | S39 |
 | public distribution build | public distribution build 是使用 Developer ID 并完成 notarization 与 staple 的分发产物。 | 软件包 | 公共信任 | Developer ID 签名、公证、staple、ZIP | S39 |
+| source-only GitHub Release | source-only GitHub Release 是只发布 Git tag 源码归档与说明的 GitHub Release。 | 发布记录 | 二进制附件 | 源码归档、无应用 bundle | S40 |
 | development signing identity | development signing identity 是本地代码签名身份。 | 签名身份 | 签名标识 | `Amethyst Dev`、`Mon Dev`、ad-hoc | S10, S39 |
 | app bundle | app bundle 是 macOS 应用目录，包含 `Contents/Info.plist` 与可执行文件。 | 文件系统对象 | 目录结构 | 含 `Contents/Info.plist`、含可执行文件 | S18 |
 
@@ -111,3 +112,4 @@
 - S37: `Mon/Preferences/DisplaysPreferencesViewController.swift` presents desktops by ordinal and follows the macOS Human Interface Guidelines for settings panes, labels, layout, and toggles; `Mon/View/PreferencesWindow.swift` keeps the window title in sync with the visible pane.
 - S38: `ScreenManager.setLayout` enables tiling and keeps Space-specific layouts; `decodedLayouts` preserves Space-specific layouts; `DisplaysPreferencesViewController` is the single layout configuration surface after the status-menu Layouts entry and Layouts pane removal.
 - S39: `Scripts/dev-build.sh`, `Scripts/user-install.sh`, `Scripts/ci-build.sh`, and `Scripts/release-pipeline.sh` define the local development, user self-installation, CI, and public distribution contracts and their signing identities.
+- S40: `.github/workflows/release.yml` validates an existing semantic-version tag and calls `Scripts/github-release.sh`, which publishes release notes without attaching unsigned or locally signed binaries.

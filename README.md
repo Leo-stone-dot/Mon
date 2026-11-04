@@ -245,9 +245,19 @@ packing `build/Mon-macos27-arm64.zip`. There is no in-app updater or feed.
 The `fastlane mac` and `fastlane release` lanes are thin wrappers around `ci`
 and `signed`.
 
-## Contributing
+GitHub Releases are source-only unless the `signed` pipeline has produced a
+Developer ID signed and notarized ZIP. After creating and pushing a semantic
+version tag, use the manual **Publish source release** workflow; it reruns CI
+against that tag and calls `Scripts/github-release.sh`. It deliberately never
+uploads an unsigned or locally `Mon Dev`-signed app bundle.
 
-If you'd like to contribute please branch off of the `development` branch and open pull requests against it rather than `master`. Otherwise just try to stick to the general style of the code.
+## Project model
+
+Mon is published as a reference implementation, not as a collaborative upstream
+project. Pull requests are not accepted. Fork it and use AI-assisted development
+to adapt the behavior, layouts, compatibility policy, and distribution model to
+your own needs. Issues may be used for observations, but they do not imply a
+support commitment or roadmap.
 
 ## Support upstream
 
