@@ -8,7 +8,7 @@
 
 ## 术语定义原则
 
-[**MUST**]当前仓库出现的所有的术语，必须在 glossary.md 中定义，新出现的术语必须遵循 `定义术语的标准`
+[**MUST**]当前仓库出现的所有的术语，必须在 `docs/glossary.md` 中定义，新出现的术语必须遵循 `定义术语的标准`
 
 ### 定义术语的标准：ISO/IEC 11179-4 六条规则
 每一条术语的"定义"文本必须满足：
@@ -23,9 +23,9 @@ Property = 它在这类事物上测量或描述的属性
 Value Domain = 允许取什么值、不允许取什么值——这是最容易写废的字段（见下）
 来源可追溯：每条术语标注原始出处编号，便于以后审计口径是否漂移
 
-## `implementation-notes.md`
+## `docs/internal/implementation-notes.md`
 
-repo root 的 `implementation-notes.md`，唯一用途是及时暴露 agent 执行与用户目标的偏离，不是通用进度日志、设计文档或反思文章。
+`docs/internal/implementation-notes.md` 的唯一用途是及时暴露 agent 执行与用户目标的偏离，不是通用进度日志、设计文档或反思文章。
 
 - substantive execution 开始后维护该文件；真实偏离发生时立即追加，不得等任务结束后重写成无偏差的总结。
 - milestone 只允许追加到文件末尾，按时间正序排列。精确分钟已知时标题必须为 `## YYYY-MM-DD HH:MM CST <短中文摘要>`。
