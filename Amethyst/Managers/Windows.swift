@@ -13,9 +13,14 @@ extension WindowManager {
     class Windows {
         private(set) var windows: [Window] = []
         private(set) var lastMainWindows: [CGSSpaceID: Window?] = [:]
+        private let spaceClient: SpaceClient<Window>
         private var activeIDCache: Set<CGWindowID> = Set()
         private var deactivatedPIDs: Set<pid_t> = Set()
         private var floatingMap: [Window.WindowID: Bool] = [:]
+
+        init(spaceClient: SpaceClient<Window>) {
+            self.spaceClient = spaceClient
+        }
 
         // MARK: Window Filters
 
@@ -36,15 +41,13 @@ extension WindowManager {
                 return []
             }
 
-            guard let currentSpace = CGSpacesInfo<Window>.currentSpaceForScreen(screen) else {
-                log.warning("Could not find a space for screen: \(screenID)")
-                return []
-            }
+            let currentSpace = spaceClient.currentSpaceForScreen(screen)
 
             let screenWindows = windows.filter { window in
-                let space = CGWindowsInfo.windowSpace(window)
-
-                guard let windowScreen = window.screen(), currentSpace.id == space else {
+                guard let windowScreen = window.screen(), windowScreen.screenID() == screenID else {
+                    return false
+                }
+                if let currentSpace, spaceClient.windowSpace(window) != currentSpace.id {
                     return false
                 }
 
@@ -52,7 +55,7 @@ extension WindowManager {
                 let isHidden = self.isWindowHidden(window)
                 let isFloating = self.isWindowFloating(window)
 
-                return windowScreen.screenID() == screen.screenID() && isActive && !isHidden && !isFloating
+                return isActive && !isHidden && !isFloating
             }
 
             return screenWindows
@@ -72,7 +75,7 @@ extension WindowManager {
 
         func add(window: Window, atFront shouldInsertAtFront: Bool) {
             if shouldInsertAtFront {
-                if let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace(),
+                if let currentFocusedSpace = spaceClient.currentFocusedSpace(),
                    let firstActiveWindow = activeWindowOnCurrentScreen(atIndex: 0) {
                     lastMainWindows[currentFocusedSpace.id] = firstActiveWindow
                 }
@@ -95,7 +98,7 @@ extension WindowManager {
 
         func remove(window: Window) {
             for (_, lastMainWindow) in lastMainWindows where lastMainWindow?.id() == window.id() {
-                if let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace() {
+                if let currentFocusedSpace = spaceClient.currentFocusedSpace() {
                     let secondWindow = activeWindowOnCurrentScreen(atIndex: 1)
                     lastMainWindows[currentFocusedSpace.id] = secondWindow
                 }
@@ -129,7 +132,7 @@ extension WindowManager {
 
         /// Replaces `window` in the tracking order with `otherWindow`, dropping `window`.
         @discardableResult func replace(window: Window, withWindow otherWindow: Window) -> Bool {
-            if let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace(),
+            if let currentFocusedSpace = spaceClient.currentFocusedSpace(),
                let firstActiveWindow = activeWindowOnCurrentScreen(atIndex: 0) {
                 if firstActiveWindow == window || firstActiveWindow == otherWindow {
                     lastMainWindows[currentFocusedSpace.id] = firstActiveWindow
@@ -152,7 +155,7 @@ extension WindowManager {
         }
 
         @discardableResult func swap(window: Window, withWindow otherWindow: Window) -> Bool {
-            if let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace(),
+            if let currentFocusedSpace = spaceClient.currentFocusedSpace(),
                let firstActiveWindow = activeWindowOnCurrentScreen(atIndex: 0) {
                 if firstActiveWindow.id() == window.id() || firstActiveWindow.id() == otherWindow.id() {
                     lastMainWindows[currentFocusedSpace.id] = firstActiveWindow
@@ -184,7 +187,7 @@ extension WindowManager {
         }
 
         func isWindowActive(_ window: Window) -> Bool {
-            return window.isActive() && activeIDCache.contains(window.cgID())
+            return window.isActive() && (activeIDCache.isEmpty || activeIDCache.contains(window.cgID()))
         }
 
         func isWindowHidden(_ window: Window) -> Bool {

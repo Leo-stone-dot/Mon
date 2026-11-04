@@ -20,7 +20,10 @@ Amethyst is available for direct download on the [releases page](https://github.
 brew install --cask amethyst
 ```
 
-Note: that Amethyst now is only supported on macOS 10.15+.
+Amethyst supports macOS 26 or later on Apple silicon. Release artifacts contain
+only the `arm64` architecture; Intel Macs, Rosetta, and macOS 25 or earlier are
+not supported. The final Intel-compatible release remains available from the
+[releases page](https://github.com/ianyh/Amethyst/releases) for existing users.
 
 ## Using Amethyst
 
@@ -45,6 +48,8 @@ killall Dock
 ## Troubleshooting
 
 See [Troubleshooting](docs/troubleshooting.md) for some common issues.
+For macOS 27 support, rollback, and validation evidence requirements, see
+[macOS 27 Support Guide](docs/macos-27-support.md).
 
 ## Configuration
 
@@ -121,6 +126,10 @@ And defines the following commands, mostly a mapping to xmonad key combinations.
 | `none` | Select floating layout |
 | `none` | Select widescreen-tall layout |
 | `none` | Select bsp layout |
+
+The status menu also exposes **Disable Tiling for This Display & Space** or
+**Enable Tiling for This Display & Space**. It affects the current display and
+desktop target; global **Disable Tiling** remains a separate action.
 
 ### Available Layouts
 
@@ -207,7 +216,17 @@ Amethyst supports configuration via YAML in the home directory. See [Configurati
 
 ## Building Amethyst Locally
 
-If you would like to test your changes locally, Amethyst can be built using [`fastlane`](https://github.com/fastlane/fastlane). Just run the command `fastlane` in the root folder, and the app will be available at `./build/Amethyst.app`. (You may need to provision the app under "Signing & Capabilities" in XCode first.)
+Local builds require an Apple silicon Mac, macOS 26+, Xcode 27.2, and the macOS
+27.2 SDK. Run `Scripts/bootstrap-tools.sh` once, then use
+`Scripts/ci-build-and-test.sh`. Formatting is intentionally separate from
+building: `Scripts/lint.sh` only checks source, while `Scripts/format.sh`
+performs the explicit opt-in rewrite.
+
+Unsigned archive gates are built through [`fastlane`](https://github.com/fastlane/fastlane)
+with `bundle exec fastlane mac`. Signed release candidates use
+`bundle exec fastlane release` and require Developer ID, notarytool, and Sparkle
+EdDSA inputs in the environment, including a staging appcast path for static
+feed verification.
 
 ## Contributing
 

@@ -26,10 +26,15 @@ class FocusFollowsMouseManager<Delegate: FocusFollowsMouseManagerDelegate> {
     private var lastMouseFocusTime = Date.distantPast
 
     private let userConfiguration: UserConfiguration
+    private let screenTopologyClient: ScreenTopologyClient<Screen>
     private let disposeBag = DisposeBag()
 
-    init(userConfiguration: UserConfiguration) {
+    init(
+        userConfiguration: UserConfiguration,
+        screenTopologyClient: ScreenTopologyClient<Screen> = .system
+    ) {
         self.userConfiguration = userConfiguration
+        self.screenTopologyClient = screenTopologyClient
 
         // we want to observe changes to the focusFollowsMouse config, because mouse tracking has CPU cost
         UserDefaults.standard.rx.observe(Bool.self, ConfigurationKey.focusFollowsMouse.rawValue)
@@ -58,7 +63,7 @@ class FocusFollowsMouseManager<Delegate: FocusFollowsMouseManagerDelegate> {
 
         let mousePoint = Screen.convertFromCocoa(NSPointToCGPoint(event.locationInWindow))
 
-        guard let screen = Screen.availableScreens.first(where: { $0.frameIncludingDockAndMenu().contains(mousePoint) }) else {
+        guard let screen = screenTopologyClient.availableScreens().first(where: { $0.frameIncludingDockAndMenu().contains(mousePoint) }) else {
             return
         }
 

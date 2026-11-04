@@ -1,22 +1,81 @@
-name: Tests
+name: Xcode 27 gates
 
 on:
   push:
     branches: [ development ]
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build and run unit tests
-    runs-on: macos-latest
+  sdk-build-and-test:
+    name: Xcode 27.2 / SDK 27.2 / arm64
+    # These labels intentionally describe the real runner contract. A hosted
+    # label is not a substitute until GitHub publishes this exact environment.
+    runs-on: [self-hosted, macOS, ARM64, xcode-27.2, macos-26, ci]
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Dependencies
-        run: |
-          brew bundle
-      - name: Test
-        run: |
-          set -o pipefail && xcodebuild -workspace Amethyst.xcworkspace -scheme Amethyst clean test | xcbeautify
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Bootstrap pinned tools
+        run: Scripts/bootstrap-tools.sh
+      - name: Record toolchain and dependency graph
+        run: Scripts/collect-build-environment.sh build/environment
+      - name: Verify support contract
+        run: Scripts/verify-support-contract.sh
+      - name: Verify toolchain locks
+        run: Scripts/verify-toolchain-locks.sh
+      - name: Test appcast gate
+        run: Scripts/test-verify-appcast.sh
+      - name: Test Sparkle public key injection
+        run: Scripts/test-inject-sparkle-public-key.sh
+      - name: Test Sparkle public and private key pairing
+        run: Scripts/test-verify-sparkle-key-pair.sh
+      - name: Test release preflight
+        run: Scripts/test-release-preflight.sh
+      - name: Test artifact manifest archive digest
+        run: Scripts/test-generate-artifact-manifest.sh
+      - name: Lint without modifying source
+        run: Scripts/lint.sh
+      - name: Build and run unit tests
+        run: Scripts/ci-build-and-test.sh
+      - name: Test Sparkle EdDSA signing
+        run: Scripts/test-sparkle-eddsa.sh
+      - name: Test appcast generation
+        run: Scripts/test-generate-appcast.sh
+      - name: Test Release custom layouts
+        run: Scripts/test-release-custom-layouts.sh
+      - name: Build and inspect Release archive
+        run: Scripts/ci-archive.sh
+      - name: Verify build did not modify tracked source
+        run: git diff --exit-code
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-27-build-environment
+          path: build/environment
+
+  macos-27-runtime-contracts:
+    name: macOS 27.2 physical runner preflight
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: [self-hosted, macOS, ARM64, xcode-27.2, macos-27.2, physical]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Record and verify physical runner
+        run: Scripts/verify-physical-runner.sh
+      - name: Capture physical validation evidence
+        if: always()
+        run: Scripts/capture-physical-validation-evidence.sh build/physical-validation
+      - name: Upload physical validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-27-physical-validation
+          path: build/physical-validation
+
+  # AX/TCC/CGS scenarios will be added here as WP2 lands. Physical execution is
+  # opt-in because it changes permission and Space state on a dedicated Mac.
 

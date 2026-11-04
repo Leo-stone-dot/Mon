@@ -16,8 +16,224 @@ import SwiftyJSON
 enum TrackingError: Error {
     case unreliableFloating
     case unknownScreen
-    case unknownSpace
     case alreadyTracked
+}
+
+func shouldDistributeWindowAdd(windowSpace: CGSSpaceID?, currentSpaceID: CGSSpaceID?) -> Bool {
+    guard let windowSpace, let currentSpaceID else {
+        return true
+    }
+
+    return windowSpace == currentSpaceID
+}
+
+enum SpaceDragMouseEventKind: Equatable {
+    case move
+    case down
+    case drag
+    case release
+
+    var eventType: CGEventType {
+        switch self {
+        case .move:
+            return .mouseMoved
+        case .down:
+            return .leftMouseDown
+        case .drag:
+            return .leftMouseDragged
+        case .release:
+            return .leftMouseUp
+        }
+    }
+}
+
+enum SpaceMoveFailureReason: Equatable {
+    case unavailable
+    case secureInputEnabled
+    case eventCreationFailed
+    case missingDragPoint
+}
+
+enum SpaceMoveResult: Equatable {
+    case moved
+    case failed(SpaceMoveFailureReason)
+
+    var succeeded: Bool {
+        switch self {
+        case .moved:
+            return true
+        case .failed:
+            return false
+        }
+    }
+}
+
+struct SpaceDragEventClient {
+    let isSecureInputEnabled: () -> Bool
+    let makeMouseEvent: (_ kind: SpaceDragMouseEventKind, _ point: CGPoint) -> CGEvent?
+    let postMouseEvent: (_ kind: SpaceDragMouseEventKind, _ event: CGEvent) -> Void
+    let switchToSpace: (_ space: UInt) -> Void
+}
+
+extension SpaceDragEventClient {
+    static var cghid: SpaceDragEventClient {
+        let eventPostingClient = EventPostingClient.cghid
+        return SpaceDragEventClient(
+            isSecureInputEnabled: {
+                IsSecureEventInputEnabled()
+            },
+            makeMouseEvent: { kind, point in
+                eventPostingClient.makeMouseEvent(kind.eventType, point)
+            },
+            postMouseEvent: { _, event in
+                eventPostingClient.postMouseEvent(event)
+            },
+            switchToSpace: { space in
+                SISystemWideElement.switch(toSpace: space)
+            }
+        )
+    }
+}
+
+struct SpaceDragScheduler {
+    let schedule: (_ delay: TimeInterval, _ block: @escaping () -> Void) -> Void
+}
+
+extension SpaceDragScheduler {
+    static var mainQueue: SpaceDragScheduler {
+        return SpaceDragScheduler { delay, block in
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: block)
+        }
+    }
+}
+
+struct SpaceDragTransaction {
+    let eventClient: SpaceDragEventClient
+    let scheduler: SpaceDragScheduler
+    let grabDelay: TimeInterval
+    let releaseDelay: TimeInterval
+    let cleanupTimeout: TimeInterval
+
+    init(
+        eventClient: SpaceDragEventClient = .cghid,
+        scheduler: SpaceDragScheduler = .mainQueue,
+        grabDelay: TimeInterval = 0.05,
+        releaseDelay: TimeInterval = 0.4,
+        cleanupTimeout: TimeInterval = 2.0
+    ) {
+        self.eventClient = eventClient
+        self.scheduler = scheduler
+        self.grabDelay = grabDelay
+        self.releaseDelay = releaseDelay
+        self.cleanupTimeout = cleanupTimeout
+    }
+
+    func moveWindow(from dragPoint: CGPoint, toSpaceAtIndex spaceIndex: Int) -> SpaceMoveResult {
+        guard !eventClient.isSecureInputEnabled() else {
+            return .failed(.secureInputEnabled)
+        }
+
+        guard
+            let mouseMoveEvent = eventClient.makeMouseEvent(.move, dragPoint),
+            let mouseDownEvent = eventClient.makeMouseEvent(.down, dragPoint),
+            let mouseDragEvent = eventClient.makeMouseEvent(.drag, dragPoint),
+            let mouseUpEvent = eventClient.makeMouseEvent(.release, dragPoint)
+        else {
+            return .failed(.eventCreationFailed)
+        }
+
+        eventClient.postMouseEvent(.move, mouseMoveEvent)
+        eventClient.postMouseEvent(.down, mouseDownEvent)
+        eventClient.postMouseEvent(.drag, mouseDragEvent)
+
+        var didPostMouseUp = false
+        let cleanup = {
+            guard !didPostMouseUp else {
+                return
+            }
+            didPostMouseUp = true
+            self.eventClient.postMouseEvent(.release, mouseUpEvent)
+        }
+
+        scheduler.schedule(cleanupTimeout, cleanup)
+
+        scheduler.schedule(grabDelay) {
+            self.eventClient.switchToSpace(UInt(spaceIndex + 1))
+            self.scheduler.schedule(self.releaseDelay, cleanup)
+        }
+
+        return .moved
+    }
+}
+
+struct SpaceMoveClient<Window: WindowType> {
+    typealias Move = (_ window: Window, _ spaceIndex: Int, _ sourceSpaceIndex: Int, _ followWindow: Bool) -> SpaceMoveResult
+
+    private let move: Move
+
+    init(move: @escaping Move) {
+        self.move = move
+    }
+
+    func moveWindow(_ window: Window, toSpaceAtIndex spaceIndex: Int, sourceSpaceIndex: Int, followWindow: Bool) -> SpaceMoveResult {
+        return move(window, spaceIndex, sourceSpaceIndex, followWindow)
+    }
+}
+
+extension SpaceMoveClient {
+    static var silica: SpaceMoveClient<Window> {
+        return SpaceMoveClient<Window> { window, spaceIndex, sourceSpaceIndex, followWindow in
+            if let axWindow = window as? AXWindow {
+                guard let dragPoint = axWindow.spaceDragPointForMoveToSpace() else {
+                    return .failed(.missingDragPoint)
+                }
+
+                let transaction = SpaceDragTransaction()
+                let result = transaction.moveWindow(from: dragPoint, toSpaceAtIndex: spaceIndex)
+                guard result.succeeded else {
+                    return result
+                }
+            } else {
+                window.move(toSpaceAtIndex: UInt(spaceIndex + 1))
+            }
+
+            guard !followWindow else {
+                return .moved
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                SISystemWideElement.switch(toSpace: UInt(sourceSpaceIndex + 1))
+            }
+            return .moved
+        }
+    }
+
+    static var unavailable: SpaceMoveClient<Window> {
+        return SpaceMoveClient<Window> { _, _, _, _ in .failed(.unavailable) }
+    }
+}
+
+extension AXWindow {
+    func spaceDragPointForMoveToSpace() -> CGPoint? {
+        let windowFrame = frame()
+        guard !windowFrame.isNull else {
+            return nil
+        }
+
+        guard let minimizeButtonElement = forKey(kAXMinimizeButtonAttribute as CFString) else {
+            return CGPoint(x: windowFrame.origin.x + 5.0, y: windowFrame.origin.y + 5.0)
+        }
+
+        let minimizeButtonFrame = minimizeButtonElement.frame()
+        guard !minimizeButtonFrame.isNull else {
+            return CGPoint(x: windowFrame.origin.x + 5.0, y: windowFrame.origin.y + 5.0)
+        }
+
+        return CGPoint(
+            x: minimizeButtonFrame.midX,
+            y: windowFrame.origin.y + abs(windowFrame.origin.y - minimizeButtonFrame.minY) / 2.0
+        )
+    }
 }
 
 /**
@@ -57,27 +273,46 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
 
     let windowTransitionCoordinator: WindowTransitionCoordinator<WindowManager<Application>>
     let focusTransitionCoordinator: FocusTransitionCoordinator<WindowManager<Application>>
+    let spaceClient: SpaceClient<Window>
+    private let screenTopologyClient: ScreenTopologyClient<Screen>
+    private let eventPostingClient: EventPostingClient
+    private let spaceMoveClient: SpaceMoveClient<Window>
 
     private var applications: [pid_t: AnyApplication<Application>] = [:]
     private var applicationObservations: [pid_t: UndeterminedApplication] = [:]
     private var screens: Screens
-    private let windows = Windows()
+    private let windows: Windows
     private var lastReflowTime = Date()
     private var lastFocusDate: Date?
     private var pendingTabDetection: [Window.WindowID: Window] = [:]
     private var earlyFocusedWindows: Set<Window.WindowID> = []
     private var eventQueue: [PendingEvent] = []
+    private var persistentStateChangeHandler: (() -> Void)?
 
     private lazy var mouseStateKeeper = MouseStateKeeper(delegate: self)
     private lazy var applicationEventHandler = ApplicationEventHandler(delegate: self)
     private let userConfiguration: UserConfiguration
     private let disposeBag = DisposeBag()
 
-    init(userConfiguration: UserConfiguration) {
+    init(
+        userConfiguration: UserConfiguration,
+        spaceClient: SpaceClient<Window> = .cgs,
+        spaceMoveClient: SpaceMoveClient<Window> = .silica,
+        screenTopologyClient: ScreenTopologyClient<Screen> = .system,
+        eventPostingClient: EventPostingClient = .cghid
+    ) {
         self.userConfiguration = userConfiguration
+        self.spaceClient = spaceClient
+        self.screenTopologyClient = screenTopologyClient
+        self.eventPostingClient = eventPostingClient
+        self.spaceMoveClient = spaceMoveClient
+        self.windows = Windows(spaceClient: spaceClient)
         self.screens = Screens()
-        self.windowTransitionCoordinator = WindowTransitionCoordinator<WindowManager<Application>>()
-        self.focusTransitionCoordinator = FocusTransitionCoordinator<WindowManager<Application>>(userConfiguration: userConfiguration)
+        self.windowTransitionCoordinator = WindowTransitionCoordinator<WindowManager<Application>>(spaceClient: spaceClient)
+        self.focusTransitionCoordinator = FocusTransitionCoordinator<WindowManager<Application>>(
+            userConfiguration: userConfiguration,
+            screenTopologyClient: screenTopologyClient
+        )
         super.init()
         initialize()
     }
@@ -86,8 +321,16 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         self.screens = try values.decode(Screens.self, forKey: .screens)
         self.userConfiguration = UserConfiguration.shared
-        self.windowTransitionCoordinator = WindowTransitionCoordinator<WindowManager<Application>>()
-        self.focusTransitionCoordinator = FocusTransitionCoordinator<WindowManager<Application>>(userConfiguration: userConfiguration)
+        self.spaceClient = .cgs
+        self.screenTopologyClient = .system
+        self.eventPostingClient = .cghid
+        self.spaceMoveClient = .silica
+        self.windows = Windows(spaceClient: .cgs)
+        self.windowTransitionCoordinator = WindowTransitionCoordinator<WindowManager<Application>>(spaceClient: .cgs)
+        self.focusTransitionCoordinator = FocusTransitionCoordinator<WindowManager<Application>>(
+            userConfiguration: userConfiguration,
+            screenTopologyClient: .system
+        )
         super.init()
         initialize()
     }
@@ -110,7 +353,7 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
         installApplicationMonitor()
 
         reevaluateWindows()
-        screens.updateScreens(windowManager: self)
+        screens.updateScreens(windowManager: self, screenTopologyClient: screenTopologyClient)
     }
 
     deinit {
@@ -121,7 +364,7 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
     func reset() {
         screens = Screens()
         reevaluateWindows()
-        screens.updateScreens(windowManager: self)
+        screens.updateScreens(windowManager: self, screenTopologyClient: screenTopologyClient)
     }
 
     private func addWorkspaceNotificationObserver(_ name: NSNotification.Name, selector: Selector) {
@@ -186,7 +429,7 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
 
     @objc func activeSpaceDidChange(_ notification: Notification) {
         // Update spaces across screens so that events get distributed to the correct layouts
-        screens.updateSpaces()
+        screens.updateSpaces(screenTopologyClient: screenTopologyClient)
 
         for pendingEvent in eventQueue {
             distributeEventToScreen(pendingEvent.screen, change: pendingEvent.event)
@@ -214,7 +457,7 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
     }
 
     @objc func screenParametersDidChange(_ notification: Notification) {
-        screens.updateScreens(windowManager: self)
+        screens.updateScreens(windowManager: self, screenTopologyClient: screenTopologyClient)
     }
 }
 
@@ -353,6 +596,10 @@ extension WindowManager {
 
     func markAllScreensForReflow() {
         screens.markAllScreensForReflow()
+    }
+
+    func setPersistentStateChangeHandler(_ handler: @escaping () -> Void) {
+        persistentStateChangeHandler = handler
     }
 
     func displayCurrentLayout() {
@@ -562,10 +809,6 @@ extension WindowManager {
             throw TrackingError.unknownScreen
         }
 
-        guard CGWindowsInfo.windowSpace(window) != nil else {
-            throw TrackingError.unknownSpace
-        }
-
         if let otherWindow = otherWindow {
             _ = windows.replace(window: otherWindow, withWindow: window)
             distributeEventToScreen(screen, change: .tabChange(window: window, previousWindow: otherWindow))
@@ -576,16 +819,12 @@ extension WindowManager {
             // Windows tracked during a space change for a different space should not
             // generate .add events — doing so gives layouts stale data for windows
             // that aren't visible on the current space.
-            let windowSpace = CGWindowsInfo.windowSpace(window)
-            let currentSpaceID = CGSpacesInfo<Window>.currentSpaceForScreen(screen)?.id
-            let isOnCurrentSpace: Bool
-            if let currentSpaceID, let windowSpace {
-                isOnCurrentSpace = currentSpaceID == windowSpace
-            } else {
-                isOnCurrentSpace = true
+            let windowSpace = spaceClient.windowSpace(window)
+            if windowSpace == nil {
+                log.warning("Could not determine Space for window: \(window). Tracking it so core tiling can continue.")
             }
-
-            if isOnCurrentSpace {
+            let currentSpaceID = spaceClient.currentSpaceForScreen(screen)?.id
+            if shouldDistributeWindowAdd(windowSpace: windowSpace, currentSpaceID: currentSpaceID) {
                 let windowChange: Change = windows.isWindowFloating(window) ? .unknown : .add(window: window)
                 distributeEventToScreen(screen, change: windowChange)
             }
@@ -771,9 +1010,8 @@ extension WindowManager {
 
         let windowFrame = focusedWindow.frame()
         let mouseCursorPoint = NSPoint(x: windowFrame.midX, y: windowFrame.midY)
-        if let mouseMoveEvent = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: mouseCursorPoint, mouseButton: .left) {
-            mouseMoveEvent.flags = CGEventFlags(rawValue: 0)
-            mouseMoveEvent.post(tap: CGEventTapLocation.cghidEventTap)
+        if let mouseMoveEvent = eventPostingClient.makeMouseEvent(.mouseMoved, mouseCursorPoint) {
+            eventPostingClient.postMouseEvent(mouseMoveEvent)
         }
     }
 }
@@ -944,6 +1182,10 @@ extension WindowManager: ApplicationObservationDelegate {
 
 // MARK: Transition Coordination
 extension WindowManager {
+    var allScreenManagers: [ScreenManager<WindowManager<Application>>] {
+        return screens.screenManagers
+    }
+
     func screen(at index: Int) -> Screen? {
         return screenManager(at: index)?.screen
     }
@@ -989,28 +1231,34 @@ extension WindowManager: WindowTransitionTarget {
         case let .moveWindowToSpaceAtIndex(window, spaceIndex, sourceSpaceIndex):
             guard
                 let screen = window.screen(),
-                let spaces = CGSpacesInfo<Window>.spacesForAllScreens(includeOnlyUserSpaces: true),
+                let spaces = spaceClient.spacesForAllScreens(true),
                 spaceIndex < spaces.count
             else {
                 return
             }
 
             let targetSpace = spaces[spaceIndex]
-            guard let targetScreen = CGSpacesInfo<Window>.screenForSpace(space: targetSpace) else {
+            guard let targetScreen = spaceClient.screenForSpace(targetSpace) else {
                 return
             }
+
+            let moveResult = spaceMoveClient.moveWindow(
+                window,
+                toSpaceAtIndex: spaceIndex,
+                sourceSpaceIndex: sourceSpaceIndex,
+                followWindow: UserConfiguration.shared.followWindowsThrownBetweenSpaces()
+            )
+
+            guard moveResult.succeeded else {
+                log.warning("Space movement failed (\(moveResult)); skipping throw-to-space transition")
+                return
+            }
+
             distributeEventToScreen(screen, change: .remove(window: window))
             eventQueue.append(PendingEvent(screen: targetScreen, event: .add(window: window)))
-            window.move(toSpaceAtIndex: UInt(spaceIndex + 1))
             if targetScreen.screenID() != screen.screenID() {
                 // necessary to set frame here as window is expected to be at origin relative to targe screen when moved, can be improved.
                 window.moveScaled(to: targetScreen)
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                if !UserConfiguration.shared.followWindowsThrownBetweenSpaces() {
-                    SISystemWideElement.switch(toSpace: UInt(sourceSpaceIndex + 1))
-                }
             }
         case .resetFocus:
             if let screen = screens.screenManagers.first?.screen {
@@ -1050,7 +1298,7 @@ extension WindowManager: WindowTransitionTarget {
     }
 
     func lastMainWindowForCurrentSpace() -> Window? {
-        guard let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace(),
+        guard let currentFocusedSpace = spaceClient.currentFocusedSpace(),
               let lastMainWindow = windows.lastMainWindows[currentFocusedSpace.id]
         else {
             return nil
@@ -1088,6 +1336,10 @@ extension WindowManager: FocusTransitionTarget {
 }
 
 extension WindowManager: ScreenManagerDelegate {
+    func screenManagerPersistentStateDidChange(_ screenManager: ScreenManager<WindowManager<Application>>) {
+        persistentStateChangeHandler?()
+    }
+
     func applyWindowLimit(forScreenManager screenManager: ScreenManager<WindowManager<Application>>, minimizingIn range: (Int) -> Range<Int>) {
         guard let screen = screenManager.screen else {
             return

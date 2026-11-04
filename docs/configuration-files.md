@@ -43,6 +43,18 @@ Amethyst will pick up a config file located at `~/.amethyst.yml` or `~/.config/a
 | `disable-padding-on-builtin-display` |  `true` to disable screen padding on in-built display (default `false`). |
 | `hide-menu-bar-icon` | `true` to hide the menu bar icon (default `false`). |
 
+## Limit the number of visible windows
+
+To keep at most five windows visible on each screen and minimize the rest:
+
+```yaml
+window-max-count: 5
+```
+
+This works with every built-in layout. A custom JavaScript layout only assigns
+frames to windows; it cannot hide or minimize windows, so use `window-max-count`
+for that behavior.
+
 ## Commands
 
 Commands are defined at the root of the config file, as either an object with `mod` and `key` values to customize the command or is `false` to entirely disable it.

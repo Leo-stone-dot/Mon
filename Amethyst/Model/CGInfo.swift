@@ -6,9 +6,35 @@
 //  Copyright © 2019 Ian Ynda-Hummel. All rights reserved.
 //
 
+import ApplicationServices
 import Foundation
 import Silica
 import SwiftyJSON
+
+struct EventPostingClient {
+    let makeMouseEvent: (_ type: CGEventType, _ point: CGPoint) -> CGEvent?
+    let postMouseEvent: (_ event: CGEvent) -> Void
+}
+
+extension EventPostingClient {
+    static var cghid: EventPostingClient {
+        return EventPostingClient(
+            makeMouseEvent: { type, point in
+                let event = CGEvent(
+                    mouseEventSource: nil,
+                    mouseType: type,
+                    mouseCursorPosition: point,
+                    mouseButton: .left
+                )
+                event?.flags = CGEventFlags(rawValue: 0)
+                return event
+            },
+            postMouseEvent: { event in
+                event.post(tap: .cghidEventTap)
+            }
+        )
+    }
+}
 
 /// Windows info as taken from the underlying system.
 struct CGWindowsInfo<Window: WindowType> {
@@ -78,16 +104,74 @@ struct CGScreensInfo<Window: WindowType> {
 
     let descriptions: [JSON]
 
-    init?() {
-        guard let descriptions = Screen.screenDescriptions() else {
+    init?(screenTopologyClient: ScreenTopologyClient<Screen> = .system) {
+        guard let descriptions = screenTopologyClient.screenDescriptions() else {
             return nil
         }
 
         self.descriptions = descriptions
     }
 
-    func space(at index: Int) -> Space {
+    func space(at index: Int) -> Space? {
         return CGSpacesInfo<Window>.space(fromScreenDescription: descriptions[index])
+    }
+}
+
+struct ScreenTopologyClient<Screen: ScreenType> {
+    let availableScreens: () -> [Screen]
+    let screensHaveSeparateSpaces: () -> Bool
+    let screenDescriptions: () -> [JSON]?
+}
+
+extension ScreenTopologyClient {
+    static var system: ScreenTopologyClient<Screen> {
+        return ScreenTopologyClient(
+            availableScreens: { Screen.availableScreens },
+            screensHaveSeparateSpaces: { Screen.screensHaveSeparateSpaces },
+            screenDescriptions: { Screen.screenDescriptions() }
+        )
+    }
+}
+
+struct SpaceClient<Window: WindowType> {
+    typealias Screen = Window.Screen
+
+    let currentFocusedSpace: () -> Space?
+    let spacesForAllScreens: (_ includeOnlyUserSpaces: Bool) -> [Space]?
+    let currentSpaceForScreen: (_ screen: Screen) -> Space?
+    let screenForSpace: (_ space: Space) -> Screen?
+    let windowSpace: (_ window: Window) -> CGSSpaceID?
+}
+
+extension SpaceClient {
+    static var cgs: SpaceClient<Window> {
+        return SpaceClient<Window>(
+            currentFocusedSpace: {
+                CGSpacesInfo<Window>.currentFocusedSpace()
+            },
+            spacesForAllScreens: { includeOnlyUserSpaces in
+                CGSpacesInfo<Window>.spacesForAllScreens(includeOnlyUserSpaces: includeOnlyUserSpaces)
+            },
+            currentSpaceForScreen: { screen in
+                CGSpacesInfo<Window>.currentSpaceForScreen(screen)
+            },
+            screenForSpace: { space in
+                CGSpacesInfo<Window>.screenForSpace(space: space)
+            },
+            windowSpace: { window in
+                CGWindowsInfo<Window>.windowSpace(window)
+            }
+        )
+    }
+
+    static var unavailable: SpaceClient<Window> {
+        return SpaceClient<Window>(
+            currentFocusedSpace: { nil },
+            spacesForAllScreens: { _ in nil },
+            currentSpaceForScreen: { _ in nil },
+            screenForSpace: { _ in nil },
+            windowSpace: { _ in nil }
+        )
     }
 }
 
@@ -103,12 +187,16 @@ struct CGSpacesInfo<Window: WindowType> {
             return nil
         }
 
-        let spaces = screenDescriptions.map { screenDescription -> [Space] in
-            return allSpaces(fromScreenDescription: screenDescription) ?? []
-        }.reduce([], {acc, spaces in acc + spaces})
+        var spaces: [Space] = []
+        for screenDescription in screenDescriptions {
+            guard let screenSpaces = allSpaces(fromScreenDescription: screenDescription) else {
+                return nil
+            }
+            spaces.append(contentsOf: screenSpaces)
+        }
 
         if includeOnlyUserSpaces {
-            return spaces.filter { $0.type == CGSSpaceTypeUser }
+            return spaces.filter { $0.isUserSpace }
         }
 
         return spaces
@@ -137,7 +225,7 @@ struct CGSpacesInfo<Window: WindowType> {
         }
 
         if includeOnlyUserSpaces {
-            return spaces?.filter { $0.type == CGSSpaceTypeUser }
+            return spaces?.filter { $0.isUserSpace }
         }
 
         return spaces
@@ -209,20 +297,98 @@ struct CGSpacesInfo<Window: WindowType> {
         return Screen.availableScreens.first { $0.screenID() == screenID }
     }
 
-    static func space(fromScreenDescription screenDictionary: JSON) -> Space {
+    static func space(fromScreenDescription screenDictionary: JSON) -> Space? {
+        guard screenDictionary["Current Space"].exists() else {
+            return nil
+        }
+
         return space(fromSpaceDescription: screenDictionary["Current Space"])
     }
 
-    static func space(fromSpaceDescription spaceDictionary: JSON) -> Space {
-        let id: CGSSpaceID = spaceDictionary["ManagedSpaceID"].intValue
-        let type = CGSSpaceType(rawValue: spaceDictionary["type"].uInt32Value)
-        let uuid = spaceDictionary["uuid"].stringValue
-        return Space(id: id, type: type, uuid: uuid)
+    static func space(fromSpaceDescription spaceDictionary: JSON) -> Space? {
+        guard
+            let id = spaceDictionary["ManagedSpaceID"].int,
+            let typeRawValue = spaceDictionary["type"].uInt32,
+            let uuid = spaceDictionary["uuid"].string
+        else {
+            return nil
+        }
+
+        let type = CGSSpaceType(rawValue: typeRawValue)
+        let isFullscreen = spaceDictionary["fs_wid"].exists()
+        return Space(id: id, type: type, uuid: uuid, isFullscreen: isFullscreen)
     }
 
     static func allSpaces(fromScreenDescription screenDictionary: JSON) -> [Space]? {
-        return screenDictionary["Spaces"].array?.map {
-            space(fromSpaceDescription: $0)
+        guard let spaceDescriptions = screenDictionary["Spaces"].array else {
+            return nil
         }
+
+        var spaces: [Space] = []
+        for spaceDescription in spaceDescriptions {
+            guard let space = space(fromSpaceDescription: spaceDescription) else {
+                return nil
+            }
+            spaces.append(space)
+        }
+        return spaces
+    }
+}
+
+struct SpaceContractProbeResult: Equatable {
+    let screenDescriptionsAvailable: Bool
+    let spacesAvailable: Bool
+    let userSpaceCount: Int
+    let diagnostic: String?
+
+    var isHealthy: Bool {
+        return screenDescriptionsAvailable && spacesAvailable && userSpaceCount > 0
+    }
+
+    var description: String {
+        guard isHealthy else {
+            return "failed (\(diagnostic ?? "unknown reason"))"
+        }
+
+        return "ok (user Spaces: \(userSpaceCount))"
+    }
+}
+
+enum SpaceContractProbe {
+    static func run<Window: WindowType>(windowType: Window.Type) -> SpaceContractProbeResult {
+        guard let screenDescriptions = Window.Screen.screenDescriptions(), !screenDescriptions.isEmpty else {
+            return SpaceContractProbeResult(
+                screenDescriptionsAvailable: false,
+                spacesAvailable: false,
+                userSpaceCount: 0,
+                diagnostic: "screen descriptions unavailable"
+            )
+        }
+
+        guard let spaces = CGSpacesInfo<Window>.spacesForAllScreens() else {
+            return SpaceContractProbeResult(
+                screenDescriptionsAvailable: true,
+                spacesAvailable: false,
+                userSpaceCount: 0,
+                diagnostic: "Space dictionaries could not be decoded"
+            )
+        }
+
+        let userSpaceCount = spaces.filter { $0.isUserSpace }.count
+        if userSpaceCount == 0 {
+            return SpaceContractProbeResult(
+                screenDescriptionsAvailable: true,
+                spacesAvailable: true,
+                userSpaceCount: 0,
+                diagnostic: "no user Spaces found"
+            )
+        }
+
+        return SpaceContractProbeResult(
+            screenDescriptionsAvailable: true,
+            spacesAvailable: true,
+            userSpaceCount: userSpaceCount,
+            diagnostic: nil
+        )
     }
 }

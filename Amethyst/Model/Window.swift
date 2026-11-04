@@ -366,11 +366,11 @@ extension AXWindow: WindowType {
 
         let windowFrame = frame()
         let mouseCursorPoint = NSPoint(x: windowFrame.midX, y: windowFrame.midY)
-        guard let mouseMoveEvent = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: mouseCursorPoint, mouseButton: .left) else {
+        let eventPostingClient = EventPostingClient.cghid
+        guard let mouseMoveEvent = eventPostingClient.makeMouseEvent(.mouseMoved, mouseCursorPoint) else {
             return true
         }
-        mouseMoveEvent.flags = CGEventFlags(rawValue: 0)
-        mouseMoveEvent.post(tap: CGEventTapLocation.cghidEventTap)
+        eventPostingClient.postMouseEvent(mouseMoveEvent)
 
         return true
     }

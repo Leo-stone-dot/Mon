@@ -12,8 +12,6 @@ class PreferencesWindowController: NSWindowController {
     override func awakeFromNib() {
         super.awakeFromNib()
 
-        window?.title = ""
-
         guard let firstItem = window?.toolbar?.items.first else {
             return
         }
@@ -26,8 +24,8 @@ class PreferencesWindowController: NSWindowController {
         switch sender.itemIdentifier.rawValue {
         case "general":
             contentViewController = GeneralPreferencesViewController()
-        case "layouts":
-            contentViewController = LayoutsPreferencesViewController()
+        case "displays":
+            contentViewController = DisplaysPreferencesViewController()
         case "shortcuts":
             contentViewController = ShortcutsPreferencesViewController()
         case "mouse":
@@ -39,6 +37,8 @@ class PreferencesWindowController: NSWindowController {
         default:
             break
         }
+
+        window?.title = sender.label
     }
 }
 

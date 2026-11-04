@@ -84,6 +84,33 @@ protocol ApplicationObservationDelegate: AnyObject {
     func applicationDidActivate(_ application: AnyApplication<Application>)
 }
 
+enum ApplicationObservationError: Swift.Error, Equatable {
+    case failed
+    case observationFailed(error: Int32)
+}
+
+enum AXObservationRetryPolicy {
+    static let maxRetryCount = 6
+
+    static func shouldRetry(_ error: Swift.Error, attempt: Int) -> Bool {
+        guard attempt < maxRetryCount else {
+            return false
+        }
+
+        guard case let ApplicationObservationError.observationFailed(errorCode) = error,
+              let axError = AXError(rawValue: errorCode)
+        else {
+            return false
+        }
+
+        return axError == .cannotComplete || axError == .invalidUIElement
+    }
+
+    static func delayMilliseconds(forAttempt attempt: Int) -> Int {
+        return attempt * attempt * 100
+    }
+}
+
 /**
  This struct sets up accessibility API event subscriptions for a given Application.
  
@@ -92,15 +119,6 @@ protocol ApplicationObservationDelegate: AnyObject {
 struct ApplicationObservation<Delegate: ApplicationObservationDelegate> {
     typealias Application = Delegate.Application
     typealias Window = Application.Window
-
-    /// Errors when attempting to add observers to applications
-    enum Error: Swift.Error {
-        /// General failure
-        case failed
-
-        /// Failure in the accessibility observation
-        case observationFailed(error: Int32)
-    }
 
     /// Notifications that are observed
     private enum Notification {
@@ -200,11 +218,11 @@ struct ApplicationObservation<Delegate: ApplicationObservationDelegate> {
     func addObservers() -> Observable<Void> {
         return _addObservers(notifications: Notification.applicationNotifications).retry { errorTrigger in
             errorTrigger.enumerated().flatMap { count, error -> Observable<Int> in
-                guard count < 6 else {
+                guard AXObservationRetryPolicy.shouldRetry(error, attempt: count) else {
                     return .error(error)
                 }
 
-                return .timer(.milliseconds((count * count * 100)), scheduler: MainScheduler.instance)
+                return .timer(.milliseconds(AXObservationRetryPolicy.delayMilliseconds(forAttempt: count)), scheduler: MainScheduler.instance)
             }
         }
     }
@@ -217,11 +235,11 @@ struct ApplicationObservation<Delegate: ApplicationObservationDelegate> {
         let notifications = Notification.windowNotificationsForWindow(window)
         return _addObservers(notifications: notifications).retry { errorTrigger in
             errorTrigger.enumerated().flatMap { count, error -> Observable<Int> in
-                guard count < 6 else {
+                guard AXObservationRetryPolicy.shouldRetry(error, attempt: count) else {
                     return .error(error)
                 }
 
-                return .timer(.milliseconds((count * count * 100)), scheduler: MainScheduler.instance)
+                return .timer(.milliseconds(AXObservationRetryPolicy.delayMilliseconds(forAttempt: count)), scheduler: MainScheduler.instance)
             }
         }
     }
@@ -296,7 +314,7 @@ struct ApplicationObservation<Delegate: ApplicationObservationDelegate> {
         case .notificationAlreadyRegistered:
             return
         default:
-            throw Error.observationFailed(error: success.rawValue)
+            throw ApplicationObservationError.observationFailed(error: success.rawValue)
         }
     }
 

@@ -8,6 +8,7 @@
 
 import Cocoa
 import Foundation
+import UniformTypeIdentifiers
 
 class FloatingPreferencesViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
     private var floatingBundles: [FloatingBundle] {
@@ -53,7 +54,7 @@ class FloatingPreferencesViewController: NSViewController, NSTableViewDataSource
         openPanel.canChooseFiles = true
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = true
-        openPanel.allowedFileTypes = ["app"]
+        openPanel.allowedContentTypes = [.application]
         openPanel.prompt = "Select"
         openPanel.directoryURL = applicationDirectories.first
 

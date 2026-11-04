@@ -41,9 +41,15 @@ class FocusTransitionCoordinator<Target: FocusTransitionTarget> {
     private let userConfiguration: UserConfiguration
     private let focusFollowsMouseManager: FocusFollowsMouseManager<FocusTransitionCoordinator<Target>>
 
-    init(userConfiguration: UserConfiguration) {
+    init(
+        userConfiguration: UserConfiguration,
+        screenTopologyClient: ScreenTopologyClient<Screen> = .system
+    ) {
         self.userConfiguration = userConfiguration
-        self.focusFollowsMouseManager = FocusFollowsMouseManager(userConfiguration: userConfiguration)
+        self.focusFollowsMouseManager = FocusFollowsMouseManager(
+            userConfiguration: userConfiguration,
+            screenTopologyClient: screenTopologyClient
+        )
         self.focusFollowsMouseManager.delegate = self
     }
 

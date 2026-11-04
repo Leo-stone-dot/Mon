@@ -42,7 +42,7 @@ struct Windows: ParsableCommand {
             let app = SIApplication(runningApplication: application)
             print("\(app.title() ?? "<no title>") (pid \(app.pid()))")
             for window in app.windows() {
-                let axWindow = AXWindow(element: window)!
+                let axWindow = AXWindow(axElement: window.axElementRef)
                 print(axWindow.debugInfo(redactTitles: redactWindowTitles))
                 print("")
             }

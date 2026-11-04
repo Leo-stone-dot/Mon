@@ -153,9 +153,10 @@ struct AMScreen: ScreenType {
     func focusScreen() {
         let screenFrame = frameIncludingDockAndMenu()
         let mouseCursorPoint = NSPoint(x: screenFrame.midX, y: screenFrame.midY)
-        let mouseMoveEvent = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: mouseCursorPoint, mouseButton: .left)
-        mouseMoveEvent?.flags = CGEventFlags(rawValue: 0)
-        mouseMoveEvent?.post(tap: .cghidEventTap)
+        let eventPostingClient = EventPostingClient.cghid
+        if let mouseMoveEvent = eventPostingClient.makeMouseEvent(.mouseMoved, mouseCursorPoint) {
+            eventPostingClient.postMouseEvent(mouseMoveEvent)
+        }
     }
 
     static func screenDescriptions() -> [JSON]? {

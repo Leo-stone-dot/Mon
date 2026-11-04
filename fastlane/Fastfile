@@ -16,11 +16,9 @@
 default_platform(:mac)
 
 lane :mac do
-    build_mac_app
-    xcodebuild(
-        export_archive: true,
-        archive_path: "./build/Amethyst.xcarchive",
-        export_path: "./build",
-        export_options_plist: "./exportOptions.plist"
-    )
+    sh("./Scripts/release-pipeline.sh unsigned")
+end
+
+lane :release do
+    sh("./Scripts/release-pipeline.sh signed")
 end

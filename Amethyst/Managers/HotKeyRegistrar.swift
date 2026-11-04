@@ -13,6 +13,16 @@ protocol HotKeyRegistrar {
     func registerHotKey(with string: String?, modifiers: AMModifierFlags?, handler: @escaping () -> Void, defaultsKey: String, override: Bool)
 }
 
+enum HotKeyMigrationPolicy {
+    static func shouldApplyDefaultShortcut(isMigrated: Bool, hasExistingShortcut: Bool, override: Bool) -> Bool {
+        guard !hasExistingShortcut else {
+            return false
+        }
+
+        return !isMigrated || override
+    }
+}
+
 extension HotKeyManager: HotKeyRegistrar {
     func registerHotKey(with string: String?, modifiers: AMModifierFlags?, handler: @escaping () -> Void, defaultsKey: String, override: Bool) {
         let name = KeyboardShortcuts.Name(defaultsKey)
@@ -29,7 +39,11 @@ extension HotKeyManager: HotKeyRegistrar {
             KeyboardShortcuts.setShortcut(nil, for: name)
         }
 
-        guard KeyboardShortcuts.getShortcut(for: name) == nil && (!isMigrated || override) else {
+        guard HotKeyMigrationPolicy.shouldApplyDefaultShortcut(
+            isMigrated: isMigrated,
+            hasExistingShortcut: KeyboardShortcuts.getShortcut(for: name) != nil,
+            override: override
+        ) else {
             return
         }
 

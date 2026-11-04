@@ -6,31 +6,243 @@
 //  Copyright © 2016 Ian Ynda-Hummel. All rights reserved.
 //
 
-import CoreServices
 import Foundation
-import LoginServiceKit
 import RxCocoa
 import RxSwift
+import ServiceManagement
 import Silica
 import Sparkle
 import SwiftyBeaver
 
+struct LoginItemPresentation: Equatable {
+    let title: String
+    let state: NSControl.StateValue
+    let isEnabled: Bool
+    let guidance: String?
+
+    init(status: SMAppService.Status) {
+        switch status {
+        case .enabled:
+            self.init(title: "Start Amethyst on Login", state: .on, isEnabled: true, guidance: nil)
+        case .notRegistered:
+            self.init(title: "Start Amethyst on Login", state: .off, isEnabled: true, guidance: nil)
+        case .requiresApproval:
+            self.init(
+                title: "Start Amethyst on Login (Approve in System Settings…)",
+                state: .mixed,
+                isEnabled: true,
+                guidance: "macOS needs explicit approval. Open System Settings → General → Login Items and enable Amethyst."
+            )
+        case .notFound:
+            self.init(
+                title: "Start Amethyst on Login (Add in System Settings…)",
+                state: .off,
+                isEnabled: true,
+                guidance: "macOS cannot register this copy of Amethyst automatically. Open System Settings → General → Login Items and add Amethyst manually."
+            )
+        @unknown default:
+            self.init(
+                title: "Start Amethyst on Login (Unknown Status)",
+                state: .off,
+                isEnabled: true,
+                guidance: "macOS reported an unknown Login Items status. Check System Settings → General → Login Items."
+            )
+        }
+    }
+
+    private init(title: String, state: NSControl.StateValue, isEnabled: Bool, guidance: String?) {
+        self.title = title
+        self.state = state
+        self.isEnabled = isEnabled
+        self.guidance = guidance
+    }
+
+    var needsManualAction: Bool {
+        return guidance != nil
+    }
+}
+
+struct SparkleFeedConfiguration {
+    static let stableFeedKey = "SUFeedURL"
+    static let canaryFeedKey = "SUCanaryFeedURL"
+
+    static func feedKey(useCanaryBuild: Bool) -> String {
+        return useCanaryBuild ? canaryFeedKey : stableFeedKey
+    }
+
+    static func feedURLString(useCanaryBuild: Bool, infoDictionary: [String: Any]?) -> String? {
+        let key = feedKey(useCanaryBuild: useCanaryBuild)
+        guard let feedURLString = infoDictionary?[key] as? String,
+              let url = URL(string: feedURLString),
+              url.scheme == "https",
+              url.host != nil
+        else {
+            return nil
+        }
+
+        return feedURLString
+    }
+}
+
+private struct StateEnvelope<State: Codable>: Codable {
+    let version: Int
+    let state: State
+}
+
+enum VersionedStateCodec {
+    static let currentVersion = 1
+
+    enum DecodeError: Error, Equatable {
+        case unsupportedVersion(Int)
+    }
+
+    static func encode<State: Codable>(_ state: State, encoder: JSONEncoder = JSONEncoder()) throws -> Data {
+        try encoder.encode(StateEnvelope(version: currentVersion, state: state))
+    }
+
+    static func decode<State: Codable>(_ type: State.Type, from data: Data, decoder: JSONDecoder = JSONDecoder()) throws -> State {
+        if let envelope = try? decoder.decode(StateEnvelope<State>.self, from: data) {
+            guard envelope.version == currentVersion else {
+                throw DecodeError.unsupportedVersion(envelope.version)
+            }
+            return envelope.state
+        }
+
+        return try decoder.decode(type, from: data)
+    }
+}
+
+struct VersionedStatePersistence {
+    let stateKey: String
+    let backupKey: String
+
+    func restore<State: Codable>(_ type: State.Type, from defaults: UserDefaults = .standard) throws -> State? {
+        guard let data = defaults.data(forKey: stateKey) else {
+            return nil
+        }
+
+        return try VersionedStateCodec.decode(type, from: data)
+    }
+
+    func save<State: Codable>(_ state: State, to defaults: UserDefaults = .standard) throws {
+        if defaults.data(forKey: backupKey) == nil,
+           let previousState = defaults.data(forKey: stateKey) {
+            defaults.set(previousState, forKey: backupKey)
+        }
+
+        let encodedState = try VersionedStateCodec.encode(state)
+        defaults.set(encodedState, forKey: stateKey)
+    }
+
+    func reset(in defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: stateKey)
+        defaults.removeObject(forKey: backupKey)
+    }
+}
+
+struct LoginItemMigrationNotice {
+    let defaultsKey: String
+
+    func shouldPresent(in defaults: UserDefaults = .standard) -> Bool {
+        return !defaults.bool(forKey: defaultsKey)
+    }
+
+    func markPresented(in defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: defaultsKey)
+    }
+}
+
+enum RuntimeStatusPresentation {
+    static func degradedStatusTitles(
+        accessibilityTrusted: Bool,
+        spaceAvailability: SpaceCommandAvailability,
+        layoutStateRestoreFailed: Bool = false,
+        secureInputEnabled: Bool = false
+    ) -> [String] {
+        var titles: [String] = []
+
+        if !accessibilityTrusted {
+            titles.append("Accessibility permission is required for window management")
+        }
+
+        if let spaceStatusTitle = spaceAvailability.statusTitle {
+            titles.append(spaceStatusTitle)
+        }
+        if layoutStateRestoreFailed {
+            titles.append(LayoutStateRestorePresentation.failureTitle)
+        }
+        if secureInputEnabled {
+            titles.append(SecureInputPresentation.statusTitle)
+        }
+
+        return titles
+    }
+}
+
+enum LayoutStateRestorePresentation {
+    static let failureTitle = "Saved layout state could not be restored; using default layouts"
+}
+
+struct CurrentSpaceTilingPresentation: Equatable {
+    let title: String
+    let isEnabled: Bool
+    let isVisible: Bool
+
+    init(isTilingEnabled: Bool?) {
+        guard let isTilingEnabled = isTilingEnabled else {
+            title = ""
+            isEnabled = false
+            isVisible = false
+            return
+        }
+
+        if isTilingEnabled {
+            title = "Disable Tiling for This Display & Space"
+            isEnabled = true
+            isVisible = true
+        } else {
+            title = "Enable Tiling for This Display & Space"
+            isEnabled = true
+            isVisible = true
+        }
+    }
+}
+
+enum SecureInputPresentation {
+    static let statusTitle = "Secure Input is enabled; throw-to-Space is unavailable"
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     static let windowManagerEncodingKey = "EncodedWindowManager"
+    static let windowManagerEncodingBackupKey = "EncodedWindowManagerBackup"
+    static let loginItemMigrationNoticeKey = "did-show-smappservice-migration-notice"
+    static let windowManagerStatePersistence = VersionedStatePersistence(
+        stateKey: windowManagerEncodingKey,
+        backupKey: windowManagerEncodingBackupKey
+    )
+    static let loginItemMigrationNotice = LoginItemMigrationNotice(
+        defaultsKey: loginItemMigrationNoticeKey
+    )
 
     @IBOutlet var preferencesWindowController: PreferencesWindowController?
 
-    fileprivate var windowManager: WindowManager<SIApplication>?
+    var windowManager: WindowManager<SIApplication>?
     private var hotKeyManager: HotKeyManager<SIApplication>?
+    private lazy var updaterController = SPUStandardUpdaterController(
+        startingUpdater: false,
+        updaterDelegate: self,
+        userDriverDelegate: nil
+    )
 
     fileprivate var statusItem: NSStatusItem?
     @IBOutlet var statusItemMenu: NSMenu?
     @IBOutlet var versionMenuItem: NSMenuItem?
     @IBOutlet var startAtLoginMenuItem: NSMenuItem?
     @IBOutlet var toggleGlobalTilingMenuItem: NSMenuItem?
-    @IBOutlet var layoutsMenuItem: NSMenuItem?
+    @IBOutlet var toggleCurrentSpaceTilingMenuItem: NSMenuItem?
 
     private var isFirstLaunch = true
+    private var layoutStateRestoreFailed = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
@@ -51,30 +263,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserConfiguration.shared.tilingEnabled = !UserConfiguration.shared.startWithTilingDisabled()
 
         #if RELEASE
-            let appcastURLString: String? = {
-                if UserConfiguration.shared.useCanaryBuild() {
-                    return Bundle.main.infoDictionary?["SUCanaryFeedURL"] as? String
-                } else {
-                    return Bundle.main.infoDictionary?["SUFeedURL"] as? String
-                }
-            }()
-
-            if let appcastURLString = appcastURLString, let url = URL(string: appcastURLString) {
-                SUUpdater.shared().feedURL = url
-            } else {
-                log.error("Sparkle feed URL is missing or malformed in Info.plist")
-            }
+            updaterController.startUpdater()
         #endif
+
+        presentLoginItemMigrationNoticeIfNecessary()
 
         preferencesWindowController?.window?.level = .floating
 
-        if let encodedWindowManager = UserDefaults.standard.data(forKey: AppDelegate.windowManagerEncodingKey), UserConfiguration.shared.restoreLayoutsOnLaunch() {
-            let decoder = JSONDecoder()
-            windowManager = try? decoder.decode(WindowManager<SIApplication>.self, from: encodedWindowManager)
+        if UserDefaults.standard.data(forKey: AppDelegate.windowManagerEncodingKey) != nil, UserConfiguration.shared.restoreLayoutsOnLaunch() {
+            do {
+                windowManager = try AppDelegate.windowManagerStatePersistence.restore(WindowManager<SIApplication>.self)
+            } catch {
+                layoutStateRestoreFailed = true
+                log.error("Failed to restore layout state from UserDefaults key \(AppDelegate.windowManagerEncodingKey): \(error). Using default layouts without deleting saved state.")
+            }
         }
 
         let resolvedWindowManager = windowManager ?? WindowManager(userConfiguration: UserConfiguration.shared)
         windowManager = resolvedWindowManager
+        configureLayoutStatePersistence(for: resolvedWindowManager)
         hotKeyManager = HotKeyManager(userConfiguration: UserConfiguration.shared)
 
         hotKeyManager?.setUpWithWindowManager(resolvedWindowManager, configuration: UserConfiguration.shared, appDelegate: self)
@@ -89,9 +296,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemImage?.isTemplate = true
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem?.image = statusItemImage
+        statusItem?.button?.image = statusItemImage
         statusItem?.menu = statusItemMenu
-        statusItem?.highlightMode = true
 
         let hideMenuBarIcon: Bool = UserConfiguration.shared.hideMenuBarIcon()
         statusItem?.isVisible = !hideMenuBarIcon
@@ -99,7 +305,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         versionMenuItem?.title = "Version \(shortVersion) (\(version))"
         toggleGlobalTilingMenuItem?.title = "Disable"
 
-        startAtLoginMenuItem?.state = (LoginServiceKit.isExistLoginItems(at: Bundle.main.bundlePath) ? .on : .off)
+        refreshStartAtLoginMenuItem()
+        refreshCurrentSpaceTilingMenuItem()
 
         // Set up status item menu delegate to refresh layouts when main menu is opened
         statusItemMenu?.delegate = self
@@ -120,21 +327,69 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         do {
-            let encoder = JSONEncoder()
-            let encodedWindowManager = try encoder.encode(windowManager)
-            UserDefaults.standard.set(encodedWindowManager, forKey: AppDelegate.windowManagerEncodingKey)
+            try AppDelegate.windowManagerStatePersistence.save(windowManager)
         } catch {
             log.error("Failed to encode window manager: \(error)")
         }
     }
 
     @IBAction func toggleStartAtLogin(_ sender: AnyObject) {
-        if startAtLoginMenuItem?.state == .off {
-            LoginServiceKit.addLoginItems(at: Bundle.main.bundlePath)
-        } else {
-            LoginServiceKit.removeLoginItems(at: Bundle.main.bundlePath)
+        let service = SMAppService.mainApp
+
+        do {
+            switch service.status {
+            case .enabled:
+                try service.unregister()
+            case .notRegistered:
+                try service.register()
+                if service.status == .requiresApproval {
+                    presentLoginItemGuidance(for: LoginItemPresentation(status: service.status))
+                }
+            case .requiresApproval, .notFound:
+                presentLoginItemGuidance(for: LoginItemPresentation(status: service.status))
+            @unknown default:
+                presentLoginItemGuidance(for: LoginItemPresentation(status: service.status))
+            }
+        } catch {
+            log.error("Failed to change Start at Login registration: \(error)")
+            presentLoginItemRegistrationFailure(error)
         }
-        startAtLoginMenuItem?.state = (LoginServiceKit.isExistLoginItems(at: Bundle.main.bundlePath) ? .on : .off)
+
+        refreshStartAtLoginMenuItem()
+    }
+
+    private func presentLoginItemGuidance(for presentation: LoginItemPresentation) {
+        guard let guidance = presentation.guidance else {
+            return
+        }
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = presentation.title
+        alert.informativeText = guidance
+        alert.addButton(withTitle: "Open Login Items")
+        alert.addButton(withTitle: "Done")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            SMAppService.openSystemSettingsLoginItems()
+        }
+    }
+
+    private func presentLoginItemRegistrationFailure(_ error: Error) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Could not change Start at Login"
+        alert.informativeText = """
+        \(error.localizedDescription)
+
+        You can add Amethyst manually in System Settings → General → Login Items.
+        """
+        alert.addButton(withTitle: "Open Login Items")
+        alert.addButton(withTitle: "Done")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            SMAppService.openSystemSettingsLoginItems()
+        }
     }
 
     @IBAction func toggleGlobalTiling(_ sender: AnyObject) {
@@ -142,13 +397,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowManager?.markAllScreensForReflow()
     }
 
+    @IBAction func toggleCurrentSpaceTiling(_ sender: AnyObject) {
+        screenManagerForMenuAction()?.toggleTilingForCurrentSpace()
+        refreshCurrentSpaceTilingMenuItem()
+    }
+
     @IBAction func resetLayouts(_ sender: AnyObject) {
-        UserDefaults.standard.removeObject(forKey: AppDelegate.windowManagerEncodingKey)
+        AppDelegate.windowManagerStatePersistence.reset()
+        layoutStateRestoreFailed = false
         windowManager?.reset()
     }
 
     @IBAction func relaunch(_ sender: AnyObject) {
         AppManager.relaunch()
+    }
+
+    private func configureLayoutStatePersistence(for windowManager: WindowManager<SIApplication>) {
+        windowManager.setPersistentStateChangeHandler { [weak windowManager] in
+            guard let windowManager = windowManager else {
+                return
+            }
+
+            do {
+                try AppDelegate.windowManagerStatePersistence.save(windowManager)
+            } catch {
+                log.error("Failed to persist selected layout state: \(error)")
+            }
+        }
     }
 
     @IBAction func showPreferencesWindow(_ sender: AnyObject) {
@@ -164,8 +439,59 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @IBAction func checkForUpdates(_ sender: AnyObject) {
         #if RELEASE
-            SUUpdater.shared().checkForUpdates(sender)
+            updaterController.checkForUpdates(sender)
         #endif
+    }
+
+    private func refreshStartAtLoginMenuItem() {
+        guard let menuItem = startAtLoginMenuItem else {
+            return
+        }
+
+        let presentation = LoginItemPresentation(status: SMAppService.mainApp.status)
+        menuItem.title = presentation.title
+        menuItem.state = presentation.state
+        menuItem.isEnabled = presentation.isEnabled
+        menuItem.toolTip = presentation.guidance
+    }
+
+    private func refreshCurrentSpaceTilingMenuItem() {
+        guard let menuItem = toggleCurrentSpaceTilingMenuItem else {
+            return
+        }
+
+        let presentation = CurrentSpaceTilingPresentation(
+            isTilingEnabled: screenManagerForMenuAction()?.currentSpaceTilingEnabled
+        )
+        menuItem.isHidden = !presentation.isVisible
+        guard presentation.isVisible else {
+            return
+        }
+        menuItem.title = presentation.title
+        menuItem.isEnabled = presentation.isEnabled
+    }
+
+    private func presentLoginItemMigrationNoticeIfNecessary() {
+        let notice = AppDelegate.loginItemMigrationNotice
+        guard notice.shouldPresent() else {
+            return
+        }
+
+        notice.markPresented()
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Start at Login must be enabled again"
+        alert.informativeText = """
+        Amethyst now uses the macOS Login Items service. Previous login item settings are not migrated.
+        Enable Amethyst explicitly in the status menu or System Settings if you want it to start at login.
+        """
+        alert.addButton(withTitle: "Open Login Items")
+        alert.addButton(withTitle: "Later")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            SMAppService.openSystemSettingsLoginItems()
+        }
     }
 
     private func presentDotfileWarningIfNecessary() {
@@ -184,68 +510,55 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func populateLayoutsMenu() {
-        guard let layoutsMenuItem = layoutsMenuItem,
-              let submenu = layoutsMenuItem.submenu else {
-            return
-        }
-
-        // Clear existing items
-        submenu.removeAllItems()
-
-        // Get screen manager: try focused screen first, then screen under mouse cursor
-        let screenManager: ScreenManager<WindowManager<SIApplication>>? = {
-            if let focused = windowManager?.focusedScreenManager() {
-                return focused
-            }
-            // Fallback to screen containing mouse cursor (useful when clicking menu bar)
-            let mouseLocation = NSEvent.mouseLocation
-            if let nsScreen = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) {
-                let amScreen = AMScreen(screen: nsScreen)
-                return windowManager?.screenManager(for: amScreen)
-            }
+    /// Resolves the screen manager used by status-menu actions.
+    ///
+    /// The focused window may be unavailable (no Accessibility permission, or no
+    /// focused window at all). In that case fall back to the screen under the
+    /// mouse cursor, which is the screen the user clicked the menu bar on.
+    private func screenManagerForMenuAction() -> ScreenManager<WindowManager<SIApplication>>? {
+        guard let windowManager = windowManager else {
             return nil
-        }()
+        }
 
-        guard let screenManager = screenManager else {
-            let errorItem = NSMenuItem(title: "Unable to determine current screen", action: nil, keyEquivalent: "")
-            errorItem.isEnabled = false
-            submenu.addItem(errorItem)
+        if let focusedScreenManager = windowManager.focusedScreenManager() {
+            return focusedScreenManager
+        }
+
+        let mouseLocation = NSEvent.mouseLocation
+        if let nsScreen = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) {
+            return windowManager.screenManager(for: AMScreen(screen: nsScreen))
+        }
+
+        return nil
+    }
+
+    private static let runtimeStatusItemIdentifier = NSUserInterfaceItemIdentifier("runtime-status")
+
+    private func updateRuntimeStatusItems() {
+        guard let menu = statusItemMenu else {
             return
         }
 
-        // Get layouts from the screen manager (not from global config)
-        let layouts = screenManager.layoutsInfo
-
-        // Check if no layouts are available and return early
-        if layouts.isEmpty {
-            let noLayoutsItem = NSMenuItem(title: "No layouts enabled", action: nil, keyEquivalent: "")
-            noLayoutsItem.isEnabled = false
-            submenu.addItem(noLayoutsItem)
-            return
+        for existingItem in menu.items where existingItem.identifier == AppDelegate.runtimeStatusItemIdentifier {
+            menu.removeItem(existingItem)
         }
 
-        // Add menu items for each layout in the screen manager
-        for layoutInfo in layouts {
-            let menuItem = NSMenuItem(title: layoutInfo.name, action: #selector(selectLayout(_:)), keyEquivalent: "")
-            menuItem.target = self
-            menuItem.representedObject = layoutInfo.key
-            menuItem.state = layoutInfo.isSelected ? .on : .off
+        let spaceAvailability = windowManager?.windowTransitionCoordinator.spaceCommandAvailability() ?? .available
+        let titles = RuntimeStatusPresentation.degradedStatusTitles(
+            accessibilityTrusted: DebugInfo.isProcessTrusted(),
+            spaceAvailability: spaceAvailability,
+            layoutStateRestoreFailed: layoutStateRestoreFailed,
+            secureInputEnabled: SpaceDragEventClient.cghid.isSecureInputEnabled()
+        )
 
-            submenu.addItem(menuItem)
+        for (index, title) in titles.enumerated() {
+            let statusMenuItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            statusMenuItem.identifier = AppDelegate.runtimeStatusItemIdentifier
+            statusMenuItem.isEnabled = false
+            menu.insertItem(statusMenuItem, at: index)
         }
     }
 
-    @IBAction func selectLayout(_ sender: NSMenuItem) {
-        guard let layoutKey = sender.representedObject as? String,
-              let windowManager = windowManager,
-              let screenManager = windowManager.focusedScreenManager() else {
-            return
-        }
-
-        screenManager.selectLayout(layoutKey)
-        // Menu will be refreshed automatically when next opened via NSMenuDelegate
-    }
 }
 
 extension AppDelegate: NSWindowDelegate {
@@ -258,7 +571,9 @@ extension AppDelegate: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         // Refresh layouts menu when main status item menu is about to open
         if menu == statusItemMenu {
-            populateLayoutsMenu()
+            updateRuntimeStatusItems()
+            refreshCurrentSpaceTilingMenuItem()
+            refreshStartAtLoginMenuItem()
         }
     }
 }
@@ -274,10 +589,24 @@ extension AppDelegate: UserConfigurationDelegate {
             toggleGlobalTilingMenuItem?.title = "Enable Tiling"
         }
         statusItemImage?.isTemplate = true
-        statusItem?.image = statusItemImage
+        statusItem?.button?.image = statusItemImage
     }
 
     func configurationAccessibilityPermissionsDidChange(_ userConfiguration: UserConfiguration) {
         windowManager?.reevaluateWindows()
+    }
+}
+
+extension AppDelegate: SPUUpdaterDelegate {
+    func feedURLString(for updater: SPUUpdater) -> String? {
+        let useCanaryBuild = UserConfiguration.shared.useCanaryBuild()
+        guard let feedURLString = SparkleFeedConfiguration.feedURLString(
+            useCanaryBuild: useCanaryBuild,
+            infoDictionary: Bundle.main.infoDictionary
+        ) else {
+            log.error("Sparkle feed URL \(SparkleFeedConfiguration.feedKey(useCanaryBuild: useCanaryBuild)) is missing, malformed, or not HTTPS in Info.plist")
+            return nil
+        }
+        return feedURLString
     }
 }

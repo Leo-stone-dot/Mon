@@ -20,6 +20,28 @@ enum DefaultFloat: Equatable {
     }
 }
 
+struct AccessibilityClient {
+    let isProcessTrusted: (_ shouldPrompt: Bool) -> Bool
+}
+
+/// Explicit per-display configuration applied when a display starts tracking a
+/// Space that has no saved state.
+struct DisplayDefaults: Equatable {
+    var tilingEnabled: Bool
+    var layoutKey: String?
+}
+
+extension AccessibilityClient {
+    static var system: AccessibilityClient {
+        return AccessibilityClient { shouldPrompt in
+            let options = [
+                kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: shouldPrompt
+            ]
+            return AXIsProcessTrustedWithOptions(options as CFDictionary)
+        }
+    }
+}
+
 protocol ConfigurationStorage {
     func object(forKey key: ConfigurationKey) -> Any?
     func array(forKey key: ConfigurationKey) -> [Any]?
@@ -101,6 +123,7 @@ enum ConfigurationKey: String {
     case disablePaddingOnBuiltinDisplay = "disable-padding-on-builtin-display"
     case hideMenuBarIcon = "hide-menu-bar-icon"
     case startWithTilingDisabled = "start-with-tiling-disabled"
+    case displayDefaults = "display-defaults"
 }
 
 extension ConfigurationKey: CaseIterable {}
@@ -200,9 +223,16 @@ class FloatingBundle: NSObject {
     }
 }
 
+struct ConfigurationFileLoad<Value> {
+    let value: Value?
+    let path: String
+    let diagnostic: String?
+}
+
 class UserConfiguration: NSObject {
     static let shared = UserConfiguration()
     private let storage: ConfigurationStorage
+    private let accessibilityClient: AccessibilityClient
 
     weak var delegate: UserConfigurationDelegate?
 
@@ -226,8 +256,9 @@ class UserConfiguration: NSObject {
     var modifier3: AMModifierFlags?
     var modifier4: AMModifierFlags?
 
-    init(storage: ConfigurationStorage) {
+    init(storage: ConfigurationStorage, accessibilityClient: AccessibilityClient = .system) {
         self.storage = storage
+        self.accessibilityClient = accessibilityClient
     }
 
     override convenience init() {
@@ -304,38 +335,85 @@ class UserConfiguration: NSObject {
         }
     }
 
-    private func yamlForConfig(at path: String) -> [String: Any]? {
-        guard FileManager.default.fileExists(atPath: path, isDirectory: nil) else {
-            return nil
-        }
-
-        let configPath = URL(fileURLWithPath: path)
-
-        guard let string = try? String(contentsOf: configPath) else {
-            return nil
-        }
-
+    static func parseYAMLConfiguration(_ string: String, path: String) -> ConfigurationFileLoad<[String: Any]> {
         do {
             let yaml = try Yams.load(yaml: string)
-            return yaml as? [String: Any]
+            guard let dictionary = yaml as? [String: Any] else {
+                return ConfigurationFileLoad(
+                    value: nil,
+                    path: path,
+                    diagnostic: "\(path) does not contain a YAML mapping"
+                )
+            }
+            return ConfigurationFileLoad(value: dictionary, path: path, diagnostic: nil)
         } catch {
-            log.debug(error)
-            return nil
+            return ConfigurationFileLoad(
+                value: nil,
+                path: path,
+                diagnostic: "Could not parse \(path) as YAML: \(error)"
+            )
         }
     }
 
-    private func jsonForConfig(at path: String) -> JSON? {
+    static func parseJSONConfiguration(_ data: Data, path: String) -> ConfigurationFileLoad<JSON> {
+        do {
+            return ConfigurationFileLoad(value: try JSON(data: data), path: path, diagnostic: nil)
+        } catch {
+            return ConfigurationFileLoad(
+                value: nil,
+                path: path,
+                diagnostic: "Could not parse \(path) as JSON: \(error)"
+            )
+        }
+    }
+
+    private func yamlForConfig(at path: String) -> ConfigurationFileLoad<[String: Any]> {
         guard FileManager.default.fileExists(atPath: path, isDirectory: nil) else {
-            return nil
+            return ConfigurationFileLoad(value: nil, path: path, diagnostic: "Configuration file not found: \(path)")
         }
 
-        let configPath = URL(fileURLWithPath: path)
+        do {
+            let string = try String(contentsOf: URL(fileURLWithPath: path), encoding: .utf8)
+            return UserConfiguration.parseYAMLConfiguration(string, path: path)
+        } catch {
+            return ConfigurationFileLoad(
+                value: nil,
+                path: path,
+                diagnostic: "Could not read \(path): \(error)"
+            )
+        }
+    }
 
-        guard let data = try? Data(contentsOf: configPath) else {
-            return nil
+    private func jsonForConfig(at path: String) -> ConfigurationFileLoad<JSON> {
+        guard !path.isEmpty, FileManager.default.fileExists(atPath: path, isDirectory: nil) else {
+            return ConfigurationFileLoad(
+                value: nil,
+                path: path,
+                diagnostic: "Default configuration resource 'default.amethyst' is missing from the app bundle"
+            )
         }
 
-        return try? JSON(data: data)
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: path))
+            return UserConfiguration.parseJSONConfiguration(data, path: path)
+        } catch {
+            return ConfigurationFileLoad(
+                value: nil,
+                path: path,
+                diagnostic: "Could not read \(path): \(error)"
+            )
+        }
+    }
+
+    private func presentConfigurationLoadFailure(_ load: ConfigurationFileLoad<some Any>, fallbackMessage: String) {
+        let diagnostic = load.diagnostic ?? fallbackMessage
+        log.error(diagnostic)
+
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Error loading configuration"
+        alert.informativeText = diagnostic
+        alert.runModal()
     }
 
     private func loadConfigurationFile() {
@@ -354,48 +432,33 @@ class UserConfiguration: NSObject {
          4. default json
          */
         if FileManager.default.fileExists(atPath: amethystYAMLConfigPath, isDirectory: &isDirectory) {
-            configurationYAML = yamlForConfig(at: amethystYAMLConfigPath)
+            let load = yamlForConfig(at: amethystYAMLConfigPath)
+            configurationYAML = load.value
 
             if configurationYAML == nil {
-                log.error("error loading configuration as yaml")
-
-                let alert = NSAlert()
-                alert.alertStyle = .critical
-                alert.messageText = "Error loading configuration"
-                alert.runModal()
+                presentConfigurationLoadFailure(load, fallbackMessage: "Could not load \(amethystYAMLConfigPath) as YAML")
             }
         } else if FileManager.default.fileExists(atPath: amethystXDGConfigPath, isDirectory: &isDirectory) {
-            configurationYAML = yamlForConfig(at: isDirectory.boolValue ? amethystXDGConfigPath.appending("/amethyst.yml") : amethystXDGConfigPath)
+            let path = isDirectory.boolValue ? amethystXDGConfigPath.appending("/amethyst.yml") : amethystXDGConfigPath
+            let load = yamlForConfig(at: path)
+            configurationYAML = load.value
 
             if configurationYAML == nil {
-                log.error("error loading configuration as yaml")
-
-                let alert = NSAlert()
-                alert.alertStyle = .critical
-                alert.messageText = "Error loading configuration"
-                alert.runModal()
+                presentConfigurationLoadFailure(load, fallbackMessage: "Could not load \(path) as YAML")
             }
         } else if FileManager.default.fileExists(atPath: amethystJSONConfigPath, isDirectory: &isDirectory) {
-            configurationJSON = jsonForConfig(at: amethystJSONConfigPath)
+            let load = jsonForConfig(at: amethystJSONConfigPath)
+            configurationJSON = load.value
 
             if configurationJSON == nil {
-                log.error("error loading configuration as json")
-
-                let alert = NSAlert()
-                alert.alertStyle = .critical
-                alert.messageText = "Error loading configuration"
-                alert.runModal()
+                presentConfigurationLoadFailure(load, fallbackMessage: "Could not load \(amethystJSONConfigPath) as JSON")
             }
         }
 
-        defaultConfiguration = jsonForConfig(at: defaultAmethystConfigPath ?? "")
+        let defaultLoad = jsonForConfig(at: defaultAmethystConfigPath ?? "")
+        defaultConfiguration = defaultLoad.value
         if defaultConfiguration == nil {
-            log.error("error loading default configuration")
-
-            let alert = NSAlert()
-            alert.alertStyle = .critical
-            alert.messageText = "Error loading default configuration"
-            alert.runModal()
+            presentConfigurationLoadFailure(defaultLoad, fallbackMessage: "Could not load the default configuration")
         }
 
         let mod1Strings: [String] = configurationValueForKey(.mod1) ?? []
@@ -517,6 +580,42 @@ class UserConfiguration: NSObject {
 
     func setLayoutKeys(_ layoutKeys: [String]) {
         storage.set(layoutKeys as Any?, forKey: .layouts)
+    }
+
+    func displayDefaults() -> [String: DisplayDefaults] {
+        guard let raw = storage.object(forKey: .displayDefaults) as? [String: [String: Any]] else {
+            return [:]
+        }
+
+        return raw.reduce(into: [:]) { defaults, entry in
+            guard let tilingEnabled = entry.value["tiling"] as? Bool else {
+                return
+            }
+
+            defaults[entry.key] = DisplayDefaults(
+                tilingEnabled: tilingEnabled,
+                layoutKey: entry.value["layout"] as? String
+            )
+        }
+    }
+
+    func displayDefaults(forDisplayID displayID: String) -> DisplayDefaults? {
+        return displayDefaults()[displayID]
+    }
+
+    func setDisplayDefaults(_ defaults: DisplayDefaults?, forDisplayID displayID: String) {
+        var allDefaults = displayDefaults()
+        allDefaults[displayID] = defaults
+
+        let raw = allDefaults.reduce(into: [String: [String: Any]]()) { raw, entry in
+            var value: [String: Any] = ["tiling": entry.value.tilingEnabled]
+            if let layoutKey = entry.value.layoutKey {
+                value["layout"] = layoutKey
+            }
+            raw[entry.key] = value
+        }
+
+        storage.set(raw, forKey: .displayDefaults)
     }
 
     func runningApplication(_ runningApplication: BundleIdentifiable, byDefaultFloatsForTitle title: String?) -> Reliable<DefaultFloat> {
@@ -784,10 +883,6 @@ class UserConfiguration: NSObject {
 
 extension UserConfiguration {
     @discardableResult func confirmAccessibilityPermissions() -> Bool {
-        let options = [
-            kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true
-        ]
-
-        return AXIsProcessTrustedWithOptions(options as CFDictionary)
+        return accessibilityClient.isProcessTrusted(true)
     }
 }

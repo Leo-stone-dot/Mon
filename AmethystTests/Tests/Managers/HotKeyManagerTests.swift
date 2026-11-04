@@ -20,5 +20,44 @@ class HotKeyManagerTests: QuickSpec {
                 expect(screenCommands.count).to(equal(7))
             }
         }
+
+        describe("HotKeyMigrationPolicy") {
+            it("applies the default shortcut on first migration") {
+                expect(HotKeyMigrationPolicy.shouldApplyDefaultShortcut(
+                    isMigrated: false,
+                    hasExistingShortcut: false,
+                    override: false
+                )).to(beTrue())
+            }
+
+            it("does not reapply a migrated shortcut") {
+                expect(HotKeyMigrationPolicy.shouldApplyDefaultShortcut(
+                    isMigrated: true,
+                    hasExistingShortcut: false,
+                    override: false
+                )).to(beFalse())
+            }
+
+            it("reapplies a migrated shortcut when overridden") {
+                expect(HotKeyMigrationPolicy.shouldApplyDefaultShortcut(
+                    isMigrated: true,
+                    hasExistingShortcut: false,
+                    override: true
+                )).to(beTrue())
+            }
+
+            it("never overwrites an existing shortcut") {
+                expect(HotKeyMigrationPolicy.shouldApplyDefaultShortcut(
+                    isMigrated: false,
+                    hasExistingShortcut: true,
+                    override: false
+                )).to(beFalse())
+                expect(HotKeyMigrationPolicy.shouldApplyDefaultShortcut(
+                    isMigrated: false,
+                    hasExistingShortcut: true,
+                    override: true
+                )).to(beFalse())
+            }
+        }
     }
 }

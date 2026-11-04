@@ -69,6 +69,31 @@ class CustomLayoutTests: QuickSpec {
             }
         }
 
+        describe("missing layout file") {
+            it("does not crash and produces no frame assignments") {
+                let screen = TestScreen(frame: CGRect(origin: .zero, size: CGSize(width: 2000, height: 1000)))
+                TestScreen.availableScreens = [screen]
+
+                let windows = [
+                    TestWindow(element: nil)!,
+                    TestWindow(element: nil)!
+                ]
+                let layoutWindows = windows.map {
+                    LayoutWindow<TestWindow>(id: $0.id(), frame: $0.frame(), isFocused: false)
+                }
+                let windowSet = WindowSet<TestWindow>(
+                    windows: layoutWindows,
+                    isWindowWithIDActive: { _ in return true },
+                    isWindowWithIDFloating: { _ in return false },
+                    windowForID: { id in return windows.first { $0.id() == id } }
+                )
+                let missingURL = URL(fileURLWithPath: "/tmp/amethyst-missing-custom-layout.js")
+                let layout = CustomLayout<TestWindow>(key: "missing", fileURL: missingURL)
+
+                expect(layout.frameAssignments(windowSet, on: screen)).to(beNil())
+            }
+        }
+
         describe("null layout") {
             it("defines a name") {
                 let layout = CustomLayout<TestWindow>(key: "null", fileURL: Bundle.layoutFile(key: "null")!)

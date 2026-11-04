@@ -18,6 +18,69 @@ enum WindowTransition<Window: WindowType> {
     case resetFocus
 }
 
+enum SpaceCommandFailureReason: Equatable, CustomStringConvertible {
+    case spaceInformationUnavailable
+    case currentSpaceNotFound
+    case targetSpaceOutOfRange
+    case noFocusedWindow
+    case focusedWindowHasNoScreen
+    case noUserSpaceInDirection
+
+    var description: String {
+        switch self {
+        case .spaceInformationUnavailable:
+            return "Space information is unavailable"
+        case .currentSpaceNotFound:
+            return "Current Space is not listed in the available Spaces"
+        case .targetSpaceOutOfRange:
+            return "Target Space index is out of range"
+        case .noFocusedWindow:
+            return "No focused window is available"
+        case .focusedWindowHasNoScreen:
+            return "Focused window has no screen"
+        case .noUserSpaceInDirection:
+            return "No user Space exists in the requested direction"
+        }
+    }
+}
+
+enum SpaceCommandResult: Equatable {
+    case executed
+    case disabled(SpaceCommandFailureReason)
+
+    var succeeded: Bool {
+        switch self {
+        case .executed:
+            return true
+        case .disabled:
+            return false
+        }
+    }
+}
+
+enum SpaceCommandAvailability: Equatable {
+    case available
+    case disabled(SpaceCommandFailureReason)
+
+    var isAvailable: Bool {
+        switch self {
+        case .available:
+            return true
+        case .disabled:
+            return false
+        }
+    }
+
+    var statusTitle: String? {
+        switch self {
+        case .available:
+            return nil
+        case let .disabled(reason):
+            return "Space commands disabled: \(reason.description)"
+        }
+    }
+}
+
 protocol WindowTransitionTarget: AnyObject {
     associatedtype Application: ApplicationType
     typealias Window = Application.Window
@@ -39,8 +102,11 @@ class WindowTransitionCoordinator<Target: WindowTransitionTarget> {
     typealias Screen = Window.Screen
 
     weak var target: Target?
+    private let spaceClient: SpaceClient<Window>
 
-    init() {}
+    init(spaceClient: SpaceClient<Window> = .cgs) {
+        self.spaceClient = spaceClient
+    }
 
     func swapFocusedWindowToMain() {
         guard let focusedWindow = Window.currentlyFocused(), target?.isWindowFloating(focusedWindow) == false, let screen = focusedWindow.screen() else {
@@ -154,49 +220,85 @@ class WindowTransitionCoordinator<Target: WindowTransitionTarget> {
         target?.executeTransition(.moveWindowToScreen(focusedWindow, screen: nextScreen))
     }
 
-    func pushFocusedWindowToSpace(_ space: Int) {
-        guard let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace(), let spaces = CGSpacesInfo<Window>.spacesForAllScreens() else {
-            return
+    func spaceCommandAvailability() -> SpaceCommandAvailability {
+        guard let currentFocusedSpace = spaceClient.currentFocusedSpace(),
+              let spaces = spaceClient.spacesForAllScreens(false)
+        else {
+            return .disabled(.spaceInformationUnavailable)
+        }
+
+        guard spaces.contains(currentFocusedSpace) else {
+            return .disabled(.currentSpaceNotFound)
+        }
+
+        return .available
+    }
+
+    @discardableResult
+    func pushFocusedWindowToSpace(_ space: Int) -> SpaceCommandResult {
+        guard let currentFocusedSpace = spaceClient.currentFocusedSpace(), let spaces = spaceClient.spacesForAllScreens(false) else {
+            return disableSpaceCommand(.spaceInformationUnavailable)
         }
 
         guard let index = spaces.firstIndex(of: currentFocusedSpace), index < spaces.count else {
-            return
+            return disableSpaceCommand(.currentSpaceNotFound)
         }
 
-        pushFocusedWindowToSpace(space, sourceSpace: index)
+        guard space >= 0, space < spaces.count else {
+            return disableSpaceCommand(.targetSpaceOutOfRange)
+        }
+
+        return pushFocusedWindowToSpace(space, sourceSpace: index)
     }
 
-    func pushFocusedWindowToSpace(_ space: Int, sourceSpace: Int) {
-        guard let focusedWindow = Window.currentlyFocused(), focusedWindow.screen() != nil else {
-            return
+    @discardableResult
+    func pushFocusedWindowToSpace(_ space: Int, sourceSpace: Int) -> SpaceCommandResult {
+        guard let focusedWindow = Window.currentlyFocused() else {
+            return disableSpaceCommand(.noFocusedWindow)
+        }
+
+        guard focusedWindow.screen() != nil else {
+            return disableSpaceCommand(.focusedWindowHasNoScreen)
         }
 
         target?.executeTransition(.moveWindowToSpaceAtIndex(focusedWindow, spaceIndex: space, sourceSpaceIndex: sourceSpace))
+        return .executed
     }
 
-    func pushFocusedWindowToSpaceLeft() {
-        guard let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace(), let spaces = CGSpacesInfo<Window>.spacesForAllScreens() else {
-            return
+    @discardableResult
+    func pushFocusedWindowToSpaceLeft() -> SpaceCommandResult {
+        guard let currentFocusedSpace = spaceClient.currentFocusedSpace(), let spaces = spaceClient.spacesForAllScreens(false) else {
+            return disableSpaceCommand(.spaceInformationUnavailable)
         }
 
-        let filteredSpaces = spaces.filter { $0.type == CGSSpaceTypeUser }
+        let filteredSpaces = spaces.filter { $0.isUserSpace }
         guard let index = filteredSpaces.firstIndex(of: currentFocusedSpace), index > 0 else {
-            return
+            return disableSpaceCommand(.noUserSpaceInDirection)
         }
 
-        pushFocusedWindowToSpace(index - 1, sourceSpace: index)
+        return pushFocusedWindowToSpace(index - 1, sourceSpace: index)
     }
 
-    func pushFocusedWindowToSpaceRight() {
-        guard let currentFocusedSpace = CGSpacesInfo<Window>.currentFocusedSpace(), let spaces = CGSpacesInfo<Window>.spacesForAllScreens() else {
-            return
+    @discardableResult
+    func pushFocusedWindowToSpaceRight() -> SpaceCommandResult {
+        guard let currentFocusedSpace = spaceClient.currentFocusedSpace(), let spaces = spaceClient.spacesForAllScreens(false) else {
+            return disableSpaceCommand(.spaceInformationUnavailable)
         }
 
-        let filteredSpaces = spaces.filter { $0.type == CGSSpaceTypeUser }
-        guard let index = filteredSpaces.firstIndex(of: currentFocusedSpace), index + 1 < spaces.count else {
-            return
+        let filteredSpaces = spaces.filter { $0.isUserSpace }
+        guard let index = filteredSpaces.firstIndex(of: currentFocusedSpace), index + 1 < filteredSpaces.count else {
+            return disableSpaceCommand(.noUserSpaceInDirection)
         }
 
-        pushFocusedWindowToSpace(index + 1, sourceSpace: index)
+        return pushFocusedWindowToSpace(index + 1, sourceSpace: index)
+    }
+
+    private func disableSpaceCommand(_ reason: SpaceCommandFailureReason) -> SpaceCommandResult {
+        logSpaceCommandDisabled(reason)
+        return .disabled(reason)
+    }
+
+    private func logSpaceCommandDisabled(_ reason: SpaceCommandFailureReason) {
+        log.warning("Space command disabled: \(reason.description)")
     }
 }

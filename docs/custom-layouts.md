@@ -8,6 +8,19 @@ Layouts are located in `~/Library/Application Support/Amethyst/Layouts/`. This d
 
 At the moment, files must be manually moved to this directory. There is no way to import them through the app.
 
+## Per-display and per-Space selection
+
+The enabled layout list is global, but the selected layout and its state are
+stored separately for every **display × Space** pair. For example, the same
+physical display can use Equal Row in one desktop and Wide in another, while
+an external display can use Tall at the same time.
+
+Open the status-menu **Layouts** submenu after focusing a window on the target
+display. Its disabled first line identifies the target display and Space. If
+there is no focused window, the menu uses the display under the mouse cursor.
+A layout selection is persisted immediately; it does not need to wait for
+Amethyst to quit.
+
 ## Defining a Layout
 
 At the root of the file you must define a function named `layout`. This function should return an object with the following properties.
@@ -121,3 +134,58 @@ Current changes are:
 ## Examples
 
 There are several layouts defined for automated tests that can serve as examples. They are in [AmethystTests/Model/CustomLayouts/](../AmethystTests/Model/CustomLayouts/).
+
+### Example: equal-height rows
+
+The built-in Row layout reserves half of the screen for the main pane, so the
+first window is larger. To give every window an equal-height row, save this as
+`~/Library/Application Support/Amethyst/Layouts/equal-row.js`:
+
+```js
+function layout() {
+  return {
+    name: "Equal Row",
+    initialState: {},
+    getFrameAssignments: function(windows, screenFrame, state, extendedFrames) {
+      var frames = {};
+      var count = windows.length;
+
+      if (count === 0) {
+        return frames;
+      }
+
+      var baseHeight = Math.floor(screenFrame.height / count);
+
+      windows.forEach(function(window, index) {
+        var isLast = index === count - 1;
+        var height = isLast ? screenFrame.height - baseHeight * index : baseHeight;
+
+        frames[window.id] = {
+          x: screenFrame.x,
+          y: screenFrame.y + baseHeight * index,
+          width: screenFrame.width,
+          height: height,
+          isMain: true,
+          unconstrainedDimension: "vertical"
+        };
+      });
+
+      return frames;
+    },
+    updateWithChange: function(change, state) {
+      return state;
+    },
+    recommendMainPaneRatio: function(ratio, state) {
+      return state;
+    }
+  };
+}
+```
+
+Then enable `Equal Row` in Preferences → Layouts, or add `equal-row` to the
+`layouts` list in `~/.amethyst.yml`. Restart Amethyst after adding the file so
+the layout is discovered.
+
+For the built-in Row layout, an alternative is to increase the main pane count
+until it equals the number of windows (`Increase main pane count`, default
+`mod1 + ,`); then every row gets the same height.

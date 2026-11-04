@@ -32,6 +32,9 @@ if CommandLine.arguments.contains("--debug-info") {
     print(DebugInfo.description(arguments: CommandLine.arguments))
 } else if CommandLine.arguments.dropFirst().first == "test" {
     _ = NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
+} else if CommandLine.arguments.contains("--log") {
+    // AppDelegate enables console logging when this flag is present.
+    _ = NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
 } else {
     do {
         var command = try Amethyst.parseAsRoot()

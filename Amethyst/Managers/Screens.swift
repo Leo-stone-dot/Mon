@@ -20,13 +20,13 @@ extension WindowManager {
 
         init() {}
 
-        func updateSpaces() {
-            guard let screensInfo = CGScreensInfo<Window>() else {
+        func updateSpaces(screenTopologyClient: ScreenTopologyClient<Application.Window.Screen>) {
+            guard let screenDescriptions = screenTopologyClient.screenDescriptions() else {
                 return
             }
 
-            if Screen.screensHaveSeparateSpaces {
-                for screenDictionary in screensInfo.descriptions {
+            if screenTopologyClient.screensHaveSeparateSpaces() {
+                for screenDictionary in screenDescriptions {
                     guard let screenID = screenDictionary["Display Identifier"].string else {
                         log.error("Could not identify screen with info: \(screenDictionary)")
                         continue
@@ -37,7 +37,10 @@ extension WindowManager {
                         continue
                     }
 
-                    let space = CGSpacesInfo<Window>.space(fromScreenDescription: screenDictionary)
+                    guard let space = CGSpacesInfo<Window>.space(fromScreenDescription: screenDictionary) else {
+                        log.warning("Could not decode current Space for screen: \(screenID)")
+                        continue
+                    }
 
                     guard screenManager.space != space else {
                         continue
@@ -46,12 +49,15 @@ extension WindowManager {
                     screenManager.updateSpace(to: space)
                 }
             } else {
-                guard let firstDescription = screensInfo.descriptions.first else {
+                guard let firstDescription = screenDescriptions.first else {
                     log.warning("No screen descriptions available during space update")
                     return
                 }
                 for screenManager in screenManagers {
-                    let space = CGSpacesInfo<Window>.space(fromScreenDescription: firstDescription)
+                    guard let space = CGSpacesInfo<Window>.space(fromScreenDescription: firstDescription) else {
+                        log.warning("Could not decode current shared Space")
+                        continue
+                    }
 
                     guard screenManager.space != space else {
                         continue
@@ -69,10 +75,13 @@ extension WindowManager {
             return screenManagers.first { $0.screen?.screenID() == focusedWindow.screen()?.screenID() }
         }
 
-        func updateScreens(windowManager: WindowManager) {
+        func updateScreens(
+            windowManager: WindowManager,
+            screenTopologyClient: ScreenTopologyClient<Application.Window.Screen>
+        ) {
             var screenManagers: [ScreenManager<WindowManager<Application>>] = []
 
-            for screen in Screen.availableScreens {
+            for screen in screenTopologyClient.availableScreens() {
                 guard let screenID = screen.screenID() else {
                     continue
                 }
@@ -80,7 +89,8 @@ extension WindowManager {
                 let screenManager = screenManagersCache[screenID] ?? ScreenManager<WindowManager<Application>>(
                     screen: screen,
                     delegate: windowManager,
-                    userConfiguration: UserConfiguration.shared
+                    userConfiguration: UserConfiguration.shared,
+                    spaceClient: windowManager.spaceClient
                 )
                 screenManager.delegate = windowManager
                 screenManager.updateScreen(to: screen)
@@ -94,7 +104,7 @@ extension WindowManager {
             // See `ScreenManager`'s `Comparable` conformance
             self.screenManagers = screenManagers.sorted()
 
-            updateSpaces()
+            updateSpaces(screenTopologyClient: screenTopologyClient)
             markAllScreensForReflow()
         }
 

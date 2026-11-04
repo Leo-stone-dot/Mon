@@ -557,6 +557,45 @@ class UserConfigurationTests: QuickSpec {
             }
         }
 
+        describe("display defaults") {
+            it("returns nothing for an unconfigured display") {
+                let configuration = UserConfiguration(storage: TestConfigurationStorage())
+
+                expect(configuration.displayDefaults(forDisplayID: "display-1")).to(beNil())
+            }
+
+            it("stores tiling and layout for each display independently") {
+                let storage = TestConfigurationStorage()
+                let configuration = UserConfiguration(storage: storage)
+                let first = DisplayDefaults(tilingEnabled: false, layoutKey: "tall")
+                let second = DisplayDefaults(tilingEnabled: true, layoutKey: "wide")
+
+                configuration.setDisplayDefaults(first, forDisplayID: "display-1")
+                configuration.setDisplayDefaults(second, forDisplayID: "display-2")
+
+                expect(configuration.displayDefaults(forDisplayID: "display-1")).to(equal(first))
+                expect(configuration.displayDefaults(forDisplayID: "display-2")).to(equal(second))
+            }
+
+            it("drops the display entry when cleared") {
+                let configuration = UserConfiguration(storage: TestConfigurationStorage())
+                configuration.setDisplayDefaults(DisplayDefaults(tilingEnabled: true, layoutKey: "tall"), forDisplayID: "display-1")
+
+                configuration.setDisplayDefaults(nil, forDisplayID: "display-1")
+
+                expect(configuration.displayDefaults()).to(beEmpty())
+            }
+
+            it("keeps a nil layout when only tiling is configured") {
+                let configuration = UserConfiguration(storage: TestConfigurationStorage())
+
+                configuration.setDisplayDefaults(DisplayDefaults(tilingEnabled: true, layoutKey: nil), forDisplayID: "display-1")
+
+                expect(configuration.displayDefaults(forDisplayID: "display-1")?.tilingEnabled).to(beTrue())
+                expect(configuration.displayDefaults(forDisplayID: "display-1")?.layoutKey).to(beNil())
+            }
+        }
+
         describe("load configuration") {
             it("default configuration does not override existing configuration") {
                 let storage = TestConfigurationStorage()
@@ -648,6 +687,56 @@ class UserConfigurationTests: QuickSpec {
                 configuration.defaultConfiguration = JSON(defaultConfiguration)
                 configuration.loadConfiguration()
                 expect(configuration.layoutKeys()).to(equal(yamlConfiguration["layouts"]))
+            }
+        }
+
+        describe("configuration load diagnostics") {
+            it("returns a diagnostic naming the path for malformed YAML") {
+                let load = UserConfiguration.parseYAMLConfiguration("layouts: [", path: "/tmp/broken.amethyst.yml")
+
+                expect(load.value).to(beNil())
+                expect(load.diagnostic).to(contain("/tmp/broken.amethyst.yml"))
+                expect(load.diagnostic).to(contain("YAML"))
+            }
+
+            it("returns a diagnostic when YAML is not a mapping") {
+                let load = UserConfiguration.parseYAMLConfiguration("- tall\n- wide\n", path: "/tmp/list.amethyst.yml")
+
+                expect(load.value).to(beNil())
+                expect(load.diagnostic).to(contain("does not contain a YAML mapping"))
+            }
+
+            it("parses valid YAML without a diagnostic") {
+                let load = UserConfiguration.parseYAMLConfiguration("layouts:\n  - tall\n", path: "/tmp/valid.amethyst.yml")
+
+                expect(load.value?["layouts"] as? [String]).to(equal(["tall"]))
+                expect(load.diagnostic).to(beNil())
+            }
+
+            it("returns a diagnostic naming the path for malformed JSON") {
+                let data = Data("{".utf8)
+                let load = UserConfiguration.parseJSONConfiguration(data, path: "/tmp/broken.amethyst")
+
+                expect(load.value).to(beNil())
+                expect(load.diagnostic).to(contain("/tmp/broken.amethyst"))
+                expect(load.diagnostic).to(contain("JSON"))
+            }
+        }
+
+        describe("Accessibility permission client") {
+            it("requests a prompt only through the injected client") {
+                var promptRequests: [Bool] = []
+                let client = AccessibilityClient { shouldPrompt in
+                    promptRequests.append(shouldPrompt)
+                    return false
+                }
+                let configuration = UserConfiguration(
+                    storage: TestConfigurationStorage(),
+                    accessibilityClient: client
+                )
+
+                expect(configuration.confirmAccessibilityPermissions()).to(beFalse())
+                expect(promptRequests).to(equal([true]))
             }
         }
 

@@ -27,3 +27,6 @@ fastlane/report.xml
 # Homebrew
 Brewfile.lock.json
 
+# Bundler
+.bundle/
+

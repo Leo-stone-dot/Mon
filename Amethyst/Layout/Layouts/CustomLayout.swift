@@ -54,7 +54,7 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
 
     private lazy var context: JSContext? = {
         guard let context = JSContext() else {
-            log.error("Failed to create javascript context")
+            log.error("Failed to create JavaScript context for custom layout at \(self.fileURL.path)")
             return nil
         }
 
@@ -73,9 +73,9 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
         context.setObject(unsafeBitCast(consoleLog, to: AnyObject.self), forKeyedSubscript: "_consoleLog" as (NSCopying & NSObjectProtocol))
 
         do {
-            context.evaluateScript(try String(contentsOf: self.fileURL))
+            context.evaluateScript(try String(contentsOf: self.fileURL, encoding: .utf8))
         } catch {
-            log.error(error)
+            log.error("Failed to load custom layout at \(self.fileURL.path): \(error)")
             return nil
         }
 
