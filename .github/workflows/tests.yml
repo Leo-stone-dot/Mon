@@ -20,26 +20,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Bootstrap pinned tools
         run: Scripts/bootstrap-tools.sh
-      - name: Record toolchain and dependency graph
-        run: Scripts/collect-build-environment.sh build/environment
-      - name: Verify support contract
-        run: Scripts/verify-support-contract.sh
-      - name: Verify toolchain locks
-        run: Scripts/verify-toolchain-locks.sh
-      - name: Test release preflight
-        run: Scripts/test-release-preflight.sh
-      - name: Test artifact manifest archive digest
-        run: Scripts/test-generate-artifact-manifest.sh
-      - name: Lint without modifying source
-        run: Scripts/lint.sh
-      - name: Build and run unit tests
-        run: Scripts/ci-build-and-test.sh
-      - name: Test Release custom layouts
-        run: Scripts/test-release-custom-layouts.sh
-      - name: Build and inspect Release archive
-        run: Scripts/ci-archive.sh
-      - name: Verify build did not modify tracked source
-        run: git diff --exit-code
+      - name: Run CI build gates
+        run: Scripts/ci-build.sh
       - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4

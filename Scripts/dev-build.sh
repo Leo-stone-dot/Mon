@@ -25,8 +25,10 @@ xcodebuild \
     COMPILER_INDEX_STORE_ENABLE=NO \
     -quiet
 
-Scripts/bootstrap-dev-signing.sh >/dev/null
-Scripts/sign-dev-app.sh
+# Keep the long-lived Amethyst Dev identity for this existing local checkout so
+# its Accessibility grant survives the Mon rename.
+SIGN_IDENTITY="Amethyst Dev" Scripts/bootstrap-dev-signing.sh "Amethyst Dev" >/dev/null
+SIGN_IDENTITY="Amethyst Dev" Scripts/sign-dev-app.sh
 
 if [[ "$run_after_build" == true ]]; then
     osascript -e 'tell application id "com.totoleo.Mon" to quit' >/dev/null 2>&1 || true

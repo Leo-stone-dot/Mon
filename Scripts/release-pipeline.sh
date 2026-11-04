@@ -2,10 +2,10 @@
 
 set -euo pipefail
 
-mode=${1:-unsigned}
+mode=${1:-ci}
 archive_path=build/Mon.xcarchive
 app_path=$archive_path/Products/Applications/Mon.app
-unsigned_manifest=build/release-manifest.json
+manifest_path=build/release-manifest.json
 final_zip=build/Mon-macos27-arm64.zip
 notary_zip=build/Mon-notary-submit.zip
 notary_result=build/notary-result.json
@@ -42,6 +42,15 @@ sign_nested_code() {
         "$app_path"
 }
 
+sign_local_release() {
+    local identity_name=${MON_LOCAL_SIGN_IDENTITY:-Mon Dev}
+
+    SIGN_IDENTITY="$identity_name" Scripts/bootstrap-dev-signing.sh "$identity_name" >/dev/null
+    SIGN_IDENTITY="$identity_name" Scripts/sign-dev-app.sh "$app_path"
+    codesign --verify --deep --strict "$app_path"
+    Scripts/generate-artifact-manifest.sh "$app_path" "$manifest_path"
+}
+
 notarize_and_staple() {
     ditto -c -k --keepParent "$app_path" "$notary_zip"
     xcrun notarytool submit "$notary_zip" \
@@ -66,9 +75,15 @@ notarize_and_staple() {
 }
 
 case "$mode" in
-    unsigned)
+    ci|unsigned)
+        # `unsigned` remains as a temporary compatibility alias.
         Scripts/ci-archive.sh
-        echo "unsigned release gates complete: $unsigned_manifest"
+        echo "CI release gates complete: $manifest_path"
+        ;;
+    local)
+        Scripts/ci-archive.sh
+        sign_local_release
+        echo "local self-install archive complete: $app_path"
         ;;
     signed)
         Scripts/release-preflight.sh
@@ -78,11 +93,11 @@ case "$mode" in
         notarize_and_staple
         Scripts/verify-signed-release-artifact.sh "$app_path"
         ditto -c -k --keepParent "$app_path" "$final_zip"
-        Scripts/generate-artifact-manifest.sh "$app_path" "$unsigned_manifest" "$final_zip"
-        echo "signed release pipeline complete: $final_zip"
+        Scripts/generate-artifact-manifest.sh "$app_path" "$manifest_path" "$final_zip"
+        echo "signed distribution pipeline complete: $final_zip"
         ;;
     *)
-        echo "usage: $0 [unsigned|signed]" >&2
+        echo "usage: $0 [ci|local|signed]" >&2
         exit 64
         ;;
 esac

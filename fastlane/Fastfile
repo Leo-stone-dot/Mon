@@ -16,7 +16,7 @@
 default_platform(:mac)
 
 lane :mac do
-    sh("./Scripts/release-pipeline.sh unsigned")
+    sh("./Scripts/release-pipeline.sh ci")
 end
 
 lane :release do

@@ -59,8 +59,11 @@
 | Keychain | Keychain 是 macOS 提供的凭据存储系统，保存证书、私钥和密码。 | 系统服务 | 凭据存储 | 证书、私钥、密码与访问控制 | S20 |
 | release preflight | release preflight 是签名发布前的检查脚本，验证签名身份与 notarytool profile。 | 验证脚本 | 前置条件 | 通过、缺少环境变量、缺少签名身份、缺少凭据 | S12 |
 | 发布交接 | 发布交接是责任记录，列出维护者办理的生产资源、执行步骤和应提交的验证证据。 | 责任记录 | 责任分配 | 维护者执行、AI 实现、待提供证据 | S20 |
-| local Release candidate | local Release candidate 是使用 Release configuration 构建、仅供当前开发 Mac 安装验证的软件包。 | 软件包 | 签名与分发范围 | `Amethyst Dev` 签名、本机安装、未 notarized、不可公开发布 | S35 |
-| development signing identity | development signing identity 是本地代码签名身份，签名为 `Amethyst Dev`。 | 签名身份 | 签名标识 | `Amethyst Dev`、ad-hoc | S10 |
+| local development build | local development build 是 Debug configuration 的本地应用产物。 | 软件包 | 构建与运行 | `Amethyst Dev` 签名、DerivedData 启动 | S39 |
+| user self-installation build | user self-installation build 是 Release configuration 的本机安装产物。 | 软件包 | 签名与安装 | `Mon Dev` 签名、安装到 `/Applications/Mon.app`、未 notarized | S39 |
+| CI build | CI build 是不创建本地身份且不安装应用的自动验证过程。 | 构建过程 | 环境副作用 | unsigned、测试与 archive gates、无用户环境变更 | S39 |
+| public distribution build | public distribution build 是使用 Developer ID 并完成 notarization 与 staple 的分发产物。 | 软件包 | 公共信任 | Developer ID 签名、公证、staple、ZIP | S39 |
+| development signing identity | development signing identity 是本地代码签名身份。 | 签名身份 | 签名标识 | `Amethyst Dev`、`Mon Dev`、ad-hoc | S10, S39 |
 | app bundle | app bundle 是 macOS 应用目录，包含 `Contents/Info.plist` 与可执行文件。 | 文件系统对象 | 目录结构 | 含 `Contents/Info.plist`、含可执行文件 | S18 |
 
 ## 测试与工具链
@@ -103,7 +106,8 @@
 - S32: `docs/macos-27-implementation-status.md` maps adaptation work packages to current source/script evidence and outstanding physical or maintainer evidence.
 - S33: `AppDelegate` presents the Space tiling action; `ScreenManager` persists layout and tiling state immediately; README and support documentation describe the behavior.
 - S34: `DebugInfo.separateSpacesAreEnabled()` initializes `NSApplication.shared` before reading `NSScreen.screensHaveSeparateSpaces`; `AppDelegateTests` verifies the order through injected closures.
-- S35: `Scripts/ci-archive.sh` produces the arm64 Release archive; the local package was re-signed with `Scripts/sign-dev-app.sh` and enclosed in a verified DMG without production release credentials.
+- S35: `Scripts/ci-archive.sh` produces the arm64 Release archive; historical local packages were re-signed without production release credentials.
 - S36: `Mon/Model/Space.swift` defines `isFullscreen` and `hasStableIdentifier`; `Mon/Model/CGInfo.swift` parses `fs_wid`; `Mon/Managers/ScreenManager.swift` keys state by `Space state key` and seeds new Spaces from `DisplayDefaults`; `Mon/Preferences/UserConfiguration.swift` persists `display-defaults`; `Mon/Preferences/DisplaysPreferencesViewController.swift` presents the per-display defaults and Space list.
 - S37: `Mon/Preferences/DisplaysPreferencesViewController.swift` presents desktops by ordinal and follows the macOS Human Interface Guidelines for settings panes, labels, layout, and toggles; `Mon/View/PreferencesWindow.swift` keeps the window title in sync with the visible pane.
 - S38: `ScreenManager.setLayout` enables tiling and keeps Space-specific layouts; `decodedLayouts` preserves Space-specific layouts; `DisplaysPreferencesViewController` is the single layout configuration surface after the status-menu Layouts entry and Layouts pane removal.
+- S39: `Scripts/dev-build.sh`, `Scripts/user-install.sh`, `Scripts/ci-build.sh`, and `Scripts/release-pipeline.sh` define the local development, user self-installation, CI, and public distribution contracts and their signing identities.

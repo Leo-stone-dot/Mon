@@ -22,8 +22,17 @@ Mon is a tiling window manager for macOS, forked from
 This fork builds from source. There is no automatic update channel.
 
 Requirements: an Apple silicon Mac, macOS 26 or later, Xcode 27.2, and the
-macOS 27.2 SDK. Build with `Scripts/ci-build-and-test.sh`, then copy
-`build/DerivedData/Build/Products/Release/Mon.app` to `/Applications`.
+macOS 27.2 SDK.
+
+```bash
+Scripts/bootstrap-tools.sh  # once: pinned tools
+Scripts/user-install.sh     # Release build, Mon Dev signing, install, relaunch
+```
+
+`user-install.sh` is the self-installation path. It produces an optimized
+Release app, signs it with the stable local `Mon Dev` identity, backs up an
+existing installation, installs `/Applications/Mon.app`, and relaunches it.
+This signature is local trust; it is not a Developer ID distribution signature.
 
 ## Using Mon
 
@@ -217,15 +226,24 @@ Mon supports configuration via `~/.mon.yml` (or `~/.config/mon/mon.yml`). Legacy
 ## Building Mon Locally
 
 Local builds require an Apple silicon Mac, macOS 26+, Xcode 27.2, and the macOS
-27.2 SDK. Run `Scripts/bootstrap-tools.sh` once, then use
-`Scripts/ci-build-and-test.sh`. Formatting is intentionally separate from
-building: `Scripts/lint.sh` only checks source, while `Scripts/format.sh`
-performs the explicit opt-in rewrite.
+27.2 SDK. Run `Scripts/bootstrap-tools.sh` once.
 
-Unsigned archive gates are built through [`fastlane`](https://github.com/fastlane/fastlane)
-with `bundle exec fastlane mac`. Signed release candidates use
-`bundle exec fastlane release` and require a Developer ID signing identity and a
-notarytool keychain profile. There is no in-app updater or feed in this fork.
+| Scenario | Entry point | Signing and side effects |
+| --- | --- | --- |
+| Local development | `Scripts/dev-build.sh --run` | Debug; preserves the existing local `Amethyst Dev` TCC identity; relaunches from DerivedData |
+| User self-installation | `Scripts/user-install.sh` | Release; local `Mon Dev` signature; backs up and replaces `/Applications/Mon.app` |
+| CI build | `Scripts/ci-build.sh` | Unsigned; runs lint, tests, Release-layout tests, archive gates, and leaves the user environment untouched |
+| Public distribution | `Scripts/release-pipeline.sh signed` | Developer ID, notarization, staple, ZIP and manifest |
+
+Formatting is intentionally separate from building: `Scripts/lint.sh` only
+checks source, while `Scripts/format.sh` performs the explicit opt-in rewrite.
+
+`Scripts/release-pipeline.sh` is the shared Release engine. `ci` creates the
+unsigned archive and manifest, `local` applies the local `Mon Dev` signature,
+and `signed` applies Developer ID signing, notarization and staple before
+packing `build/Mon-macos27-arm64.zip`. There is no in-app updater or feed.
+The `fastlane mac` and `fastlane release` lanes are thin wrappers around `ci`
+and `signed`.
 
 ## Contributing
 

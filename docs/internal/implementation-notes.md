@@ -1229,3 +1229,25 @@ Displays 页在 `viewWillAppear` 注册 `NSWorkspace.activeSpaceDidChangeNotific
 ### 测试与验证结果
 
 `Scripts/dev-test.sh` 完成 281 tests、0 failures；`Scripts/lint.sh` 0 violations；Release 构建与签名通过，安装到 `/Applications/Mon.app` 后 `CFBundleName=Mon`、bundle `com.totoleo.Mon`、版本 `0.25.0 (130)`，`--debug-info` 显示 Accessibility trusted，Resources 中只剩 `default.mon`，应用已重启。
+
+## 2026-11-04 17:08 CST 三场景构建入口与签名隔离
+
+### 发现的事实
+
+现有 `dev-build.sh` 适合本地 Debug 迭代，`release-pipeline.sh unsigned` 适合无签名 archive gate，但用户自行安装与 CI 没有各自明确的顶层入口；本地 `Amethyst Dev` 与面向其他安装者的本地签名也没有区分。
+
+### 偏离原计划
+
+原计划只在 `release-pipeline.sh` 增加安装模式；按维护者要求改为本地开发、用户自行安装、CI 构建三个独立入口，同时保留 Developer ID 公共分发模式。
+
+### AI 自作主张的决策
+
+保留 `Scripts/dev-build.sh --run` 作为本地开发入口，显式固定 `Amethyst Dev` 以延续当前机器的 TCC 授权；新增 `Scripts/user-install.sh`，调用 `release-pipeline.sh local` 构建 Release archive、以独立的 `Mon Dev` 自签名、备份旧安装并替换 `/Applications/Mon.app`；新增 `Scripts/ci-build.sh` 聚合环境证据、support/toolchain gates、lint、测试、Release custom layout 与 unsigned archive，禁止创建身份、安装或启动 GUI；`release-pipeline.sh` 改为 `ci|local|signed` 三种模式，`unsigned` 仅作为临时兼容别名；`signed` 继续要求 Developer ID 与 notarization，不使用 `Mon Dev`。签名 bootstrap 与 sign 脚本改为接收身份名称，分别持久化不同证书。
+
+### 需要人类复核的点
+
+`Mon Dev` 是本地自签名证书，不提供 Gatekeeper 公共信任；真正对外分发仍须使用 `release-pipeline.sh signed`。`unsigned` 兼容别名何时删除尚未决定。
+
+### 测试与验证结果
+
+所有新增和修改的 shell 脚本通过 `bash -n`。`dev-build.sh` 构建 Debug 并显示 `Authority=Amethyst Dev`；`user-install.sh --no-run` 在隔离安装路径完成 Release 构建、`Authority=Mon Dev`、`codesign --verify --deep --strict` 与版本 `0.25.0` 验证；`ci-build.sh` 完整执行 281 tests、lint、Release custom layout、unsigned archive 与 manifest gates 并通过。仅有既有第三方 Silica umbrella-header warnings。
