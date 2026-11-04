@@ -1,68 +1,92 @@
 # Glossary
 
+本表按主题分组。定义遵循 ISO/IEC 11179-4 的六条规则，每条术语标注来源编号，编号对应文末 Sources。
+
+## 显示器与 Space
+
+| 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
+| --- | --- | --- | --- | --- | --- |
+| display | display 是 macOS 连接的显示器，由显示器标识区分。 | 显示器 | 连接与标识 | 已连接、未连接 | S29 |
+| desktop | desktop 是 Space 类别，表示用户创建并在同一显示器内切换的工作区域。 | Space 类别 | 用户归属 | 用户桌面、非用户桌面 | S37 |
+| Space | Space 是 macOS 图形系统管理的屏幕区域，包含用户桌面、全屏应用空间与系统空间。 | 屏幕区域 | 类别 | 用户桌面、全屏应用空间、系统空间 | S36 |
+| Space UUID | Space UUID 是字符串，标识一个 macOS 桌面。 | 字符串 | 桌面标识 | 系统提供的值、空字符串（无稳定标识的桌面） | S19, S36 |
+| Space state key | Space state key 是字符串，用作布局、布局索引与 tiling 状态的存储键。 | 字符串 | 存储键取值 | Space UUID、`display:` 加显示器标识 | S36 |
+| user Space classification | user Space classification 是判定规则，表示一个 Space 是否属于用户桌面。 | 判定规则 | 全屏标记、类型与 UUID | 带 `fs_wid` 的 Space 不是、type 4 是、type 0 是（含空 UUID）、其他类型不是 | S14, S36 |
+| Space contract probe | Space contract probe 是运行时检查，验证 screen descriptions 与 Space 字典能否解析并包含 user Space。 | 运行时检查 | 健康状态 | `ok` 加 user Space 数量、`failed` 加原因 | S11 |
+| Space reflow policy | Space reflow policy 是判定规则，决定窗口重排是否因当前桌面信息而继续。 | 判定规则 | 重排许可 | tiling 禁用、非用户桌面、已知不匹配、桌面信息不可用、允许 | S23 |
+| active window fallback | active window fallback 是筛选规则，在桌面标识不可用时按显示器、窗口活动状态和浮动状态选择可平铺窗口。 | 筛选规则 | 窗口集合 | 按桌面过滤、按显示器过滤 | S23 |
+| screen topology client | screen topology client 是系统边界适配器，提供可用显示器、独立桌面开关和显示器描述。 | 系统边界适配器 | 显示器拓扑查询 | 显示器列表、独立桌面开关、描述可用或不可用 | S29 |
+| Space command availability | Space command availability 是状态值，表示 Space 相关命令当前是否可执行。 | 状态值 | 可执行性 | `available`、`disabled` 加失败原因 | S3 |
+| Space tiling action | Space tiling action 是状态菜单动作，切换一个显示器和 Space 组合的布局管理状态。 | 菜单动作 | 目标 tiling 状态 | Space 不可用、禁用 tiling、启用 tiling | S33 |
+| per-space layout index isolation | per-space layout index isolation 是行为，表示每个 Space state key 保存并恢复独立的布局索引。 | 行为 | 隔离性 | 每个 Space state key 一个索引、切换 Space 恢复对应索引 | S17, S36 |
+| layout index persistence | layout index persistence 是按 Space state key 保存当前布局索引的状态。 | 状态 | 布局索引 | 0 到布局数量减一 | S15, S36 |
+| 布局选择恢复 | 布局选择恢复是状态读取过程，按存档中的 layout key 在 Space 的布局列表中定位选择。 | 状态读取过程 | 身份对应关系 | 对应条目、所选条目缺失时取首项、空列表时无选择 | S19, S38 |
+
+## 布局
+
+| 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
+| --- | --- | --- | --- | --- | --- |
+| layout | layout 是窗口排列算法，由 layout key 标识。 | 算法 | 排列规则 | 内置算法、自定义脚本算法 | S19 |
+| layout key | layout key 是字符串，唯一标识一种窗口排列算法。 | 字符串 | 算法标识 | 内置名称或自定义脚本名称 | S19 |
+| tiling | tiling 是窗口管理状态，表示窗口是否由 layout 排列。 | 状态 | 排列控制 | 启用、停用 | S23 |
+| per-desktop layout configuration | per-desktop layout configuration 是按 Space 保存 layout 选择的操作，选择后对该 Space 启用 tiling。 | 操作 | 选择与启用 | 已选择 layout、未选择 layout | S38 |
+| display defaults | display defaults 是按显示器标识保存的配置，记录该显示器新 Space 使用的默认 tiling 开关与默认 layout key。 | 配置 | 默认 tiling 开关与默认 layout key | 已配置、未配置、tiling `true` 或 `false`、layout key 或空 | S36 |
+
+## 配置、运行时与诊断
+
+| 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
+| --- | --- | --- | --- | --- | --- |
+| configuration load diagnostic | configuration load diagnostic 是字符串，描述配置文件路径与加载失败原因。 | 字符串 | 失败原因 | 空值、含路径的读取或解析错误文本 | S5 |
+| runtime status item | runtime status item 是 status menu 中的 disabled 菜单项，展示当前运行时降级原因。 | 菜单项 | 降级说明 | 无条目、Accessibility 说明、Space 命令降级说明、布局恢复失败说明、Secure Input 说明 | S6 |
+| runtime diagnostics | runtime diagnostics 是文本输出，列出 Accessibility、Secure Input、Separate Spaces 与 Space inventory 的当前状态。 | 文本输出 | 运行时状态 | Accessibility true/false、Secure Input true/false、Separate Spaces true/false、Space counts 或 unavailable | S8 |
+| layout state recovery status | layout state recovery status 是状态菜单项，说明保存的布局状态未能读取且程序已采用默认布局。 | 菜单项 | 状态恢复结果 | 无条目、默认布局回退说明 | S25 |
+| Secure Input status | Secure Input status 是状态菜单项，说明 macOS 安全输入正在阻止跨桌面拖动操作。 | 菜单项 | 跨桌面操作可用性 | 无条目、跨桌面拖动不可用说明 | S26 |
+| login item migration notice | login item migration notice 是首次启动提示，说明旧登录项设置不会迁移。 | 提示 | 展示次数 | 未展示、已展示一次 | S9 |
+| custom layout load diagnostic | custom layout load diagnostic 是错误日志，描述自定义布局文件路径与加载失败原因。 | 日志文本 | 失败原因 | 含路径的读取或解析错误 | S13 |
+| Accessibility client | Accessibility client 是系统边界适配器，查询进程辅助功能信任状态并接受是否请求系统提示的输入。 | 系统边界适配器 | 信任查询与提示请求 | 提示、无提示、信任、未信任 | S28 |
+| event posting client | event posting client 是系统边界适配器，创建并投递合成鼠标事件。 | 系统边界适配器 | 事件创建与投递 | 成功事件、无法创建、投递路径 | S30 |
+| AppKit diagnostic initialization | AppKit diagnostic initialization 是命令行诊断开始前对共享 AppKit 应用对象的初始化。 | 初始化步骤 | 执行顺序 | 先初始化、后读取显示器状态 | S34 |
+
+## 发布与签名
+
 | 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
 | --- | --- | --- | --- | --- | --- |
 | Sparkle feed configuration | Sparkle feed configuration 是代码类型，描述更新源键与更新源地址之间的映射。 | 代码类型 | 映射关系 | `SUFeedURL`、`SUCanaryFeedURL`、缺失、格式无效 | S1 |
 | Sparkle feed URL | Sparkle feed URL 是字符串，表示 Sparkle 客户端读取更新元数据的位置。 | 字符串 | 位置 | 合法 HTTPS URL、缺失、格式无效 | S1, S2 |
 | stable feed | stable feed 是更新源类别，其内容面向默认发布通道。 | 更新源类别 | 发布通道 | 默认发布通道 | S1 |
 | canary feed | canary feed 是更新源类别，其内容面向 canary 发布通道。 | 更新源类别 | 发布通道 | canary 发布通道 | S1 |
-| Space command availability | Space command availability 是状态值，表示 Space 相关命令当前是否可执行。 | 状态值 | 可执行性 | `available`、`disabled` 加失败原因 | S3 |
+| appcast | appcast 是 XML 更新目录，列出软件版本、下载地址与签名信息。 | 更新目录 | 更新元数据 | RSS/XML 条目 | S20 |
 | appcast gate | appcast gate 是验证脚本，检查 appcast item 与构建产物的版本、最低系统版本、HTTPS 地址、EdDSA 签名和长度是否一致。 | 验证脚本 | 一致性检查 | 通过、失败 | S4 |
+| appcast staging directory | appcast staging directory 是本地目录，保存待发布 ZIP、同 basename 的 release notes 和 appcast.xml。 | 本地目录 | 发布输入集合 | stable 目录、canary 目录、历史 item、当前 item | S22 |
+| appcast generation | appcast generation 是本地过程，从已签名归档生成或更新 XML 更新目录。 | 本地过程 | 更新条目生成 | 当前 build、保留历史条目、HTTPS URL 前缀、有效 EdDSA 签名 | S22 |
 | Ed25519 | Ed25519 是签名算法，使用 32 字节私钥种子和 32 字节公钥生成与验证签名。 | 签名算法 | 密钥长度与签名验证 | 32 字节私钥种子、32 字节公钥、有效签名、无效签名 | S16 |
+| EdDSA | EdDSA 是使用椭圆曲线运算的数字签名算法族。 | 算法族 | 签名生成与验证 | 包含 Ed25519 | S20 |
 | ephemeral Ed25519 test key | ephemeral Ed25519 test key 是密钥对，只在自测临时目录中生成和删除。 | 密钥对 | 生命周期 | 自测开始时生成、自测结束时删除 | S16 |
 | Sparkle EdDSA self-test | Sparkle EdDSA self-test 是验证脚本，使用临时 Ed25519 测试密钥完成归档签名、归档验签、篡改拒绝、错误密钥拒绝、错误签名拒绝与 appcast gate 检查。 | 验证脚本 | 覆盖范围 | 通过、失败 | S16 |
-| per-space layout index isolation | per-space layout index isolation 是行为，表示每个 Space UUID 保存并恢复独立的布局索引。 | 行为 | 隔离性 | 每个 Space 一个索引、切换 Space 恢复对应索引 | S17 |
-| app bundle | app bundle 是 macOS 应用目录，包含 `Contents/Info.plist` 与可执行文件。 | 文件系统对象 | 目录结构 | 含 `Contents/Info.plist`、含可执行文件 | S18 |
 | SPARKLE_PUBLIC_KEY | SPARKLE_PUBLIC_KEY 是环境变量，值为 base64 编码的 32 字节 Ed25519 公钥。 | 环境变量 | 公钥值 | 32 字节 base64、缺失、格式无效 | S18 |
 | Sparkle public key injection | Sparkle public key injection 是发布步骤，把 `SPARKLE_PUBLIC_KEY` 写入 app bundle 的 Info.plist `SUPublicEDKey` 并在签名前校验。 | 发布步骤 | 写入位置与校验 | 归档后写入、签名前校验通过、缺失或长度不符失败 | S18 |
-| configuration load diagnostic | configuration load diagnostic 是字符串，描述配置文件路径与加载失败原因。 | 字符串 | 失败原因 | 空值、含路径的读取或解析错误文本 | S5 |
-| runtime status item | runtime status item 是 status menu 中的 disabled 菜单项，展示当前运行时降级原因。 | 菜单项 | 降级说明 | 无条目、Accessibility 说明、Space 命令降级说明 | S6 |
+| Sparkle key-pair gate | Sparkle key-pair gate 是验证脚本，使用 Ed25519 私钥种子导出公钥并比较发布公钥。 | 验证脚本 | 密钥对应关系 | 通过、格式错误、密钥不匹配 | S21 |
+| Sparkle archive public-key verification | Sparkle archive public-key verification 是验证步骤，使用 Ed25519 公钥检查 ZIP 内容与 EdDSA 签名。 | 验证步骤 | 签名有效性 | 通过、签名不匹配、签名格式错误、密钥格式错误 | S21 |
+| artifact manifest | artifact manifest 是 JSON 文件，记录一个发布产物的版本、构建环境、依赖 revision、二进制架构、公证 ID 与可选归档摘要。 | JSON 文件 | 发布可追溯性 | 必需字段、归档 path/bytes/SHA-256 | S21 |
 | deployment floor | deployment floor 是版本值，表示发布产物允许运行的最低 macOS 版本。 | 版本值 | 最低运行版本 | 26.0（当前）、27.0（已修订） | S7 |
-| runtime diagnostics | runtime diagnostics 是文本输出，列出 Accessibility、Secure Input、Separate Spaces 与 Space inventory 的当前状态。 | 文本输出 | 运行时状态 | Accessibility true/false、Secure Input true/false、Separate Spaces true/false、Space counts 或 unavailable | S8 |
-| login item migration notice | login item migration notice 是首次启动提示，说明旧登录项设置不会迁移。 | 提示 | 展示次数 | 未展示、已展示一次 | S9 |
-| development signing identity | development signing identity 是本地代码签名身份，用于让 Debug app 在重建后保持同一签名。 | 签名身份 | 签名稳定性 | `Amethyst Dev`（本地自签名）、ad-hoc（每次重建变化） | S10 |
-| Space contract probe | Space contract probe 是运行时检查，验证 screen descriptions 与 Space 字典能否解析并包含 user Space。 | 运行时检查 | 健康状态 | `ok` 加 user Space 数量、`failed` 加原因 | S11 |
-| user Space classification | user Space classification 是判定规则，表示一个 Space 是否属于用户桌面。 | 判定规则 | 全屏标记、类型与 UUID | 带 `fs_wid` 的 Space 不是、type 4 是、type 0 是（含空 UUID）、其他类型不是 | S14, S36 |
-| release preflight | release preflight 是签名发布前的检查脚本，验证签名身份、notarytool profile、Sparkle 输入、appcast 与 SUPublicEDKey。 | 验证脚本 | 前置条件 | 通过、缺少环境变量、缺少签名身份、缺少文件 | S12 |
-| custom layout load diagnostic | custom layout load diagnostic 是错误日志，描述自定义布局文件路径与加载失败原因。 | 日志文本 | 失败原因 | 含路径的读取或解析错误 | S13 |
-| layout index persistence | layout index persistence 是按 Space state key 保存当前布局索引的状态。 | 状态 | 布局索引 | 0 到布局数量减一 | S15, S36 |
-
-## 补充定义
-
-| 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
-| --- | --- | --- | --- | --- | --- |
-| layout key | layout key 是字符串，唯一标识一种窗口排列算法。 | 字符串 | 算法标识 | 内置名称或自定义脚本名称 | S19 |
-| Space UUID | Space UUID 是字符串，标识一个 macOS 桌面。 | 字符串 | 桌面标识 | 系统提供的值、空字符串（macOS 26 主显示器桌面） | S19, S36 |
-| desktop | desktop 是工作区域，由用户创建并在同一显示器内切换。 | 工作区域 | 创建与切换 | 用户桌面、全屏应用空间、系统空间 | S37 |
-| Space state key | Space state key 是字符串，用作布局、布局索引与 tiling 状态的存储键。 | 字符串 | 存储键取值 | Space UUID、`display:` 加显示器标识 | S36 |
-| display defaults | display defaults 是按显示器标识保存的配置，记录该显示器新 Space 使用的默认 tiling 开关与默认 layout key。 | 配置 | 默认 tiling 开关与默认 layout key | 已配置、未配置、tiling `true` 或 `false`、layout key 或空 | S36 |
-| 布局选择恢复 | 布局选择恢复是状态读取过程，按存档中的 layout key 在当前算法列表中定位每个 Space UUID 的选择。 | 状态读取过程 | 身份对应关系 | 对应条目、所选条目已删除时取首项、空列表时无选择 | S19 |
 | Developer ID Application | Developer ID Application 是 Apple 颁发的证书类别，标识在 Mac App Store 外分发应用的开发团队。 | 证书类别 | 开发团队身份 | Apple 签发且在有效期内的团队身份 | S20 |
 | notarization | notarization 是 Apple 对提交的软件执行自动检查并返回接受或拒绝结果的服务。 | 软件检查服务 | 接受状态 | Accepted、Invalid、In Progress | S20 |
 | notarytool | notarytool 是 Xcode 附带的命令行工具，提交软件并查询 notarization 结果。 | 命令行工具 | 服务操作 | 保存凭据、提交、查询、取回日志 | S20 |
 | Keychain | Keychain 是 macOS 提供的凭据存储系统，保存证书、私钥和密码。 | 系统服务 | 凭据存储 | 证书、私钥、密码与访问控制 | S20 |
-| EdDSA | EdDSA 是使用椭圆曲线运算的数字签名算法族。 | 算法族 | 签名生成与验证 | 包含 Ed25519 | S20 |
-| appcast | appcast 是 XML 更新目录，列出软件版本、下载地址与签名信息。 | 更新目录 | 更新元数据 | RSS/XML 条目 | S20 |
+| release preflight | release preflight 是签名发布前的检查脚本，验证签名身份、notarytool profile、Sparkle 输入、appcast 与 SUPublicEDKey。 | 验证脚本 | 前置条件 | 通过、缺少环境变量、缺少签名身份、缺少文件 | S12 |
 | 发布交接 | 发布交接是责任记录，列出维护者办理的生产资源、执行步骤和应提交的验证证据。 | 责任记录 | 责任分配 | 维护者执行、AI 实现、待提供证据 | S20 |
-| Sparkle key-pair gate | Sparkle key-pair gate 是验证脚本，使用 Ed25519 私钥种子导出公钥并比较发布公钥。 | 验证脚本 | 密钥对应关系 | 通过、格式错误、密钥不匹配 | S21 |
-| Sparkle archive public-key verification | Sparkle archive public-key verification 是验证步骤，使用 Ed25519 公钥检查 ZIP 内容与 EdDSA 签名。 | 验证步骤 | 签名有效性 | 通过、签名不匹配、签名格式错误、密钥格式错误 | S21 |
-| artifact manifest | artifact manifest 是 JSON 文件，记录一个发布产物的版本、构建环境、依赖 revision、二进制架构、公证 ID 与可选归档摘要。 | JSON 文件 | 发布可追溯性 | 必需字段、归档 path/bytes/SHA-256 | S21 |
-| appcast staging directory | appcast staging directory 是本地目录，保存待发布 ZIP、同 basename 的 release notes 和 appcast.xml。 | 本地目录 | 发布输入集合 | stable 目录、canary 目录、历史 item、当前 item | S22 |
-| appcast generation | appcast generation 是本地过程，从已签名归档生成或更新 XML 更新目录。 | 本地过程 | 更新条目生成 | 当前 build、保留历史条目、HTTPS URL 前缀、有效 EdDSA 签名 | S22 |
-| Space reflow policy | Space reflow policy 是判定规则，决定窗口重排是否因当前桌面信息而继续。 | 判定规则 | 重排许可 | tiling 禁用、非用户桌面、已知不匹配、桌面信息不可用、允许 | S23 |
-| active window fallback | active window fallback 是筛选规则，在桌面标识不可用时按显示器、窗口活动状态和浮动状态选择可平铺窗口。 | 筛选规则 | 窗口集合 | 按桌面过滤、按显示器过滤 | S23 |
-| Release custom layout validation | Release custom layout validation 是测试过程，在优化的 Release configuration 中执行 JavaScript layout fixtures。 | 测试过程 | configuration 与 fixture 执行 | Release、空 Release entitlement、通过、失败 | S24 |
-| layout state recovery status | layout state recovery status 是状态菜单项，说明保存的布局状态未能读取且程序已采用默认布局。 | 菜单项 | 状态恢复结果 | 无条目、默认布局回退说明 | S25 |
-| Secure Input status | Secure Input status 是状态菜单项，说明 macOS 安全输入正在阻止跨桌面拖动操作。 | 菜单项 | 跨桌面操作可用性 | 无条目、跨桌面拖动不可用说明 | S26 |
+| local Release candidate | local Release candidate 是使用 Release configuration 构建、仅供当前开发 Mac 安装验证的软件包。 | 软件包 | 签名与分发范围 | `Amethyst Dev` 签名、本机安装、未 notarized、不可公开发布 | S35 |
+| development signing identity | development signing identity 是本地代码签名身份，签名为 `Amethyst Dev`。 | 签名身份 | 签名标识 | `Amethyst Dev`、ad-hoc | S10 |
+| app bundle | app bundle 是 macOS 应用目录，包含 `Contents/Info.plist` 与可执行文件。 | 文件系统对象 | 目录结构 | 含 `Contents/Info.plist`、含可执行文件 | S18 |
+
+## 测试与工具链
+
+| 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
+| --- | --- | --- | --- | --- | --- |
 | stable test host | stable test host 是测试运行使用的应用宿主，带有固定 development signing identity。 | 测试宿主 | 代码身份稳定性 | `Amethyst Dev` 签名、未签名测试宿主 | S27 |
-| Accessibility client | Accessibility client 是系统边界适配器，查询进程辅助功能信任状态并接受是否请求系统提示的输入。 | 系统边界适配器 | 信任查询与提示请求 | 提示、无提示、信任、未信任 | S28 |
-| screen topology client | screen topology client 是系统边界适配器，提供可用显示器、独立桌面开关和显示器描述。 | 系统边界适配器 | 显示器拓扑查询 | 显示器列表、独立桌面开关、描述可用或不可用 | S29 |
-| event posting client | event posting client 是系统边界适配器，创建并投递合成鼠标事件。 | 系统边界适配器 | 事件创建与投递 | 成功事件、无法创建、投递路径 | S30 |
 | toolchain lock verifier | toolchain lock verifier 是验证脚本，检查项目工具版本、SwiftPM revision 和非修改性 build 配置。 | 验证脚本 | 工具链可复现性 | 通过、未锁定、会修改源码 | S31 |
 | implementation status report | implementation status report 是证据索引，列出改造工作包的实现状态、现有证据和剩余完成证据。 | 证据索引 | 工作包完成度 | 已实现、仅编译、需要外部证据、待处理 | S32 |
-| Space tiling action | Space tiling action 是状态菜单动作，切换一个显示器和 Space 组合的布局管理状态。 | 菜单动作 | 目标 tiling 状态 | Space 不可用、禁用 tiling、启用 tiling | S33 |
-| AppKit diagnostic initialization | AppKit diagnostic initialization 是命令行诊断开始前对共享 AppKit 应用对象的初始化。 | 初始化步骤 | 执行顺序 | 先初始化、后读取显示器状态 | S34 |
-| local Release candidate | local Release candidate 是使用 Release configuration 构建、仅供当前开发 Mac 安装验证的软件包。 | 软件包 | 签名与分发范围 | `Amethyst Dev` 签名、本机安装、未 notarized、不可公开发布 | S35 |
+| Release custom layout validation | Release custom layout validation 是测试过程，在优化的 Release configuration 中执行 JavaScript layout fixtures。 | 测试过程 | configuration 与 fixture 执行 | Release、空 Release entitlement、通过、失败 | S24 |
 
 ## Sources
 
