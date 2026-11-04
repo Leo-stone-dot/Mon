@@ -30,3 +30,6 @@ Brewfile.lock.json
 # Bundler
 .bundle/
 
+# Local clarification artifacts
+wishes/
+

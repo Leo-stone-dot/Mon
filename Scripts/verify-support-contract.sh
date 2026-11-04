@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-project_file=Amethyst.xcodeproj/project.pbxproj
+project_file=Mon.xcodeproj/project.pbxproj
 
 deployment_count=$(rg -c 'MACOSX_DEPLOYMENT_TARGET = 26\.0;' "$project_file")
 architecture_count=$(rg -c 'ARCHS = arm64;' "$project_file")
@@ -27,18 +27,18 @@ if rg -n 'swiftlint --fix' "$project_file"; then
     exit 1
 fi
 
-if rg -n 'kind = branch|"branch"|LoginServiceKit|loginservicekit' "$project_file" Amethyst.xcworkspace/xcshareddata/swiftpm/Package.resolved; then
+if rg -n 'kind = branch|"branch"|LoginServiceKit|loginservicekit' "$project_file" Mon.xcworkspace/xcshareddata/swiftpm/Package.resolved; then
     echo "found an unpinned branch or removed LoginServiceKit dependency" >&2
     exit 1
 fi
 
-if rg -n 'LSSharedFileList|SUUpdater' Amethyst; then
+if rg -n 'LSSharedFileList|SUUpdater' Mon; then
     echo "found a removed legacy system or updater API" >&2
     exit 1
 fi
 
 rg -q 'macOS 26 or later on Apple silicon' README.md
-rg -q 'LSMinimumSystemVersion' Amethyst/Amethyst-Info.plist
+rg -q 'LSMinimumSystemVersion' Mon/Mon-Info.plist
 rg -q 'MACOSX_DEPLOYMENT_TARGET=26\.0' docs/macos-27-support-policy.md
 rg -q 'macOS 26\.0' docs/macos-27-support-policy.md
 rg -q 'minimum system version is 26\.0' docs/macos-27-validation-checklist.md

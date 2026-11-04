@@ -1185,3 +1185,47 @@ Displays 页在 `viewWillAppear` 注册 `NSWorkspace.activeSpaceDidChangeNotific
 ### 测试与验证结果
 
 `Scripts/dev-test.sh` 完成 281 tests、0 failures（移除了 5 个 Sparkle feed 测试）；`Scripts/lint.sh` 0 violations；Release 构建与 `Scripts/sign-dev-app.sh` 签名通过，安装到 `/Applications/Amethyst.app` 后 `CFBundleIdentifier=com.totoleo.Amethyst`、版本 `0.25.0 (130)`，`--debug-info` 显示 Accessibility trusted、二进制中无 Sparkle 字符串，launchd 出现 `application.com.totoleo.Amethyst` 登录项。
+
+## 2026-11-04 16:33 CST 应用改名为 Mon
+
+### 发现的事实
+
+应用此前产品名为 Amethyst、bundle 为 `com.totoleo.Amethyst`；菜单、登录项提示、隐私政策与文档仍使用 Amethyst 名称。维护者选择完整改名，要求应用文件为 Mon.app、名称为 Mon、bundle 改为 `com.totoleo.Mon`。
+
+### 偏离原计划
+
+无；这是上一轮 fork 身份改造的延续。保留 Xcode target、scheme、Swift module 名 Amethyst，避免破坏测试宿主、xib 的 customModule 与现有脚本调用。
+
+### AI 自作主张的决策
+
+`PRODUCT_NAME` 改为 Mon、`PRODUCT_MODULE_NAME` 保持 Amethyst、bundle 改为 `com.totoleo.Mon`；菜单与登录项文案、README、隐私政策、配置与自定义布局文档改用 Mon；自定义布局目录改为 `~/Library/Application Support/Mon/Layouts/`，首次启动时从旧 Amethyst 目录复制；设置从 `com.totoleo.Amethyst` 导入到 `com.totoleo.Mon`；脚本与 CI 中的 app/archive/zip 路径和签名 identifier 同步更新。配置文件仍保留 `.amethyst.yml` 以兼容现有配置。
+
+### 需要人类复核的点
+
+旧 bundle id 的 TCC 与登录项条目可能残留；`.amethyst.yml` 配置文件名与 `default.amethyst` 资源名未改；`docs/macos-27-*` 与 `release-maintainer-handoff.md` 仍含 Sparkle 内容，待后续清理。
+
+### 测试与验证结果
+
+`Scripts/dev-test.sh` 完成 281 tests、0 failures；`Scripts/lint.sh` 0 violations；Release 构建与签名通过，`/Applications/Mon.app` 的 `CFBundleName=Mon`、`CFBundleIdentifier=com.totoleo.Mon`、版本 `0.25.0 (130)`；`--debug-info` 显示 Accessibility trusted，二进制无 Sparkle 字符串，自定义布局已迁移到 Mon 目录，launchd 出现 `application.com.totoleo.Mon` 登录项。
+
+## 2026-11-04 16:40 CST 完整改名为 Mon 与许可证整理
+
+### 发现的事实
+
+上一轮只改了产品名与 bundle，Xcode target/scheme/module、工程与工作区文件、配置文件、默认资源、脚本与文档仍保留 Amethyst 名称；LICENSE.md 只有上游版权行，README 仍含上游徽章与捐赠段落。
+
+### 偏离原计划
+
+上一轮为降低风险保留了内部名称；维护者要求把这些残留一起改掉，并按开源社区规则更新 README 与 license。
+
+### AI 自作主张的决策
+
+把 target、scheme、Swift module、工程、工作区、测试 target 全部改为 Mon/MonTests；配置文件改为 `~/.mon.yml` / `~/.config/mon/mon.yml`，保留 `.amethyst.yml` 作为后备读取；资源改为 `default.mon`；自定义布局目录已在上轮迁移；命令键 `relaunch-amethyst` 改为 `relaunch-mon`；删除构建产物中残留的 `default.amethyst`。README 重写为 fork 说明、与上游差异、构建方式、无更新渠道、许可与上游支持；LICENSE 保留原 MIT 全文与 Ian 版权，并追加 Mon 贡献者版权。上游 URL 与上游项目名保留，避免错误归属。签名身份仍为 `Amethyst Dev`，因为换证书会重置本地 TCC 授权。
+
+### 需要人类复核的点
+
+本地开发签名身份 `Amethyst Dev` 未改名；`docs/macos-27-*` 仍含 Sparkle 历史内容；旧 `com.totoleo.Amethyst` 的 TCC/登录项条目可能残留，需要时手动清理。
+
+### 测试与验证结果
+
+`Scripts/dev-test.sh` 完成 281 tests、0 failures；`Scripts/lint.sh` 0 violations；Release 构建与签名通过，安装到 `/Applications/Mon.app` 后 `CFBundleName=Mon`、bundle `com.totoleo.Mon`、版本 `0.25.0 (130)`，`--debug-info` 显示 Accessibility trusted，Resources 中只剩 `default.mon`，应用已重启。

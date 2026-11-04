@@ -1,6 +1,6 @@
 # Configuration Files
 
-Amethyst will pick up a config file located at `~/.amethyst.yml` or `~/.config/amethyst/amethyst.yml` in this order. A sample can be found at [/.amethyst.sample.yml](../.amethyst.sample.yml)
+Mon picks up a config file at `~/.mon.yml` or `~/.config/mon/mon.yml`, in that order. Legacy `~/.amethyst.yml` and `~/.config/amethyst/amethyst.yml` paths are still read when no Mon config exists. A sample can be found at [.mon.sample.yml](../.mon.sample.yml).
 
 ## Configuration Keys
 
@@ -106,8 +106,8 @@ A mod is a list of keyboard modifiers. Namely, `option`, `control`, `shift`, and
 | `disable-tiling` | Turn off tiling. |
 | `reevaluate-windows` | Rerun the current layout's algorithm. |
 | `toggle-focus-follows-mouse` | Turn on or off `focus-follows-mouse`. |
-| `relaunch-amethyst` | Automatically quit and reopen Amethyst. |
+| `relaunch-mon` | Automatically quit and reopen Mon. |
 
 ### Layout Selection
 
-Amethyst supports defining shortcuts for selecting specific layouts directly. They take the form of `select-${layout_key}-layout`. For example, defining the command `select-tall-layout` will define a shortcut that when used will switch directly to the Tall layout. Note, this works for custom layouts as well.
+Mon supports defining shortcuts for selecting specific layouts directly. They take the form of `select-${layout_key}-layout`. For example, defining the command `select-tall-layout` will define a shortcut that when used will switch directly to the Tall layout. Note, this works for custom layouts as well.

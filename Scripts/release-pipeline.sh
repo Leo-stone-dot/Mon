@@ -3,11 +3,11 @@
 set -euo pipefail
 
 mode=${1:-unsigned}
-archive_path=build/Amethyst.xcarchive
-app_path=$archive_path/Products/Applications/Amethyst.app
+archive_path=build/Mon.xcarchive
+app_path=$archive_path/Products/Applications/Mon.app
 unsigned_manifest=build/release-manifest.json
-final_zip=build/Amethyst-macos27-arm64.zip
-notary_zip=build/Amethyst-notary-submit.zip
+final_zip=build/Mon-macos27-arm64.zip
+notary_zip=build/Mon-notary-submit.zip
 notary_result=build/notary-result.json
 
 require_env() {
@@ -37,7 +37,7 @@ sign_nested_code() {
         --force \
         --options runtime \
         --timestamp \
-        --entitlements Amethyst/Amethyst.entitlements \
+        --entitlements Mon/Mon.entitlements \
         --sign "$DEVELOPER_ID_APPLICATION" \
         "$app_path"
 }

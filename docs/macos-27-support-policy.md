@@ -2,7 +2,7 @@
 
 This document is the product support contract for releases built from the
 macOS 27 adaptation work. It is intentionally narrower than historical
-Amethyst releases.
+Mon releases.
 
 ## Supported configurations
 

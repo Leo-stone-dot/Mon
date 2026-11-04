@@ -1,4 +1,4 @@
-# Amethyst macOS 27 Golden Gate 适配改造计划
+# Mon macOS 27 Golden Gate 适配改造计划
 
 > 状态：Proposed  
 > 审计日期：2026-11-03（Asia/Shanghai）  
@@ -8,7 +8,7 @@
 
 ## 1. 结论与推荐决策
 
-本项目需要为了“用 Xcode 27 编译”而整体重写。当前 Amethyst target 以 macOS 12 为 deployment target，但本计划已按维护者决策将新支持合同收窄为 **macOS 26+、Apple silicon-only、`arm64` only**（2026-11-03 由 27+ 修订为 26+）；刚完成的 MASShortcut → KeyboardShortcuts 迁移也已经消除了一个已知旧依赖。真正决定 macOS 27 适配质量的是四条高风险边界：
+本项目需要为了“用 Xcode 27 编译”而整体重写。当前 Mon target 以 macOS 12 为 deployment target，但本计划已按维护者决策将新支持合同收窄为 **macOS 26+、Apple silicon-only、`arm64` only**（2026-11-03 由 27+ 修订为 26+）；刚完成的 MASShortcut → KeyboardShortcuts 迁移也已经消除了一个已知旧依赖。真正决定 macOS 27 适配质量的是四条高风险边界：
 
 1. 通过 Silica 和项目代码直接使用的 private `CGS*` / Space 接口，以及用合成 HID 事件拖动窗口跨 Space 的行为。
 2. Accessibility/TCC 授权、AX observer 生命周期和多显示器坐标/Space 拓扑在 macOS 27 真机上的行为。
@@ -56,12 +56,12 @@ Apple 官方硬件表覆盖 M1 及之后的 MacBook Pro/Air、24-inch iMac、Mac
 | 能力 | 当前证据 | 结论 |
 | --- | --- | --- |
 | Hardened Runtime | `project.pbxproj:1054,1098` | Debug/Release 已开启；只需审计 entitlement 和发布产物 |
-| Accessibility trust prompt/check | `Amethyst/Preferences/UserConfiguration.swift:785-792`、`Amethyst/Debug/DebugInfo.swift:42-48` | 已有基础授权入口；缺 runtime revoke/recovery 和 macOS 27 contract test |
-| AX observation | `Amethyst/Model/Application.swift:222-224`、`ApplicationObservation.swift:88-228` | 已覆盖窗口创建、销毁、移动、缩放、聚焦、最小化等通知 |
-| KeyboardShortcuts | `Amethyst/Managers/HotKeyRegistrar.swift:9-45`，commit `e65216e` | MASShortcut 已移除；只补 migration/冲突/国际键盘验证 |
-| 多显示器坐标修复 | `Amethyst/Model/Screen.swift:53-74`，commit `3f9508a` | 已按 primary screen 翻转坐标；需加入拓扑回归矩阵 |
-| Release target 空 entitlement | `Amethyst/Amethyst.entitlements` | Release 未携带 Debug 的 JIT/library-validation exception |
-| SwiftPM lockfile | `Amethyst.xcworkspace/xcshareddata/swiftpm/Package.resolved` | 当前 checkout 可重现到 revision；project requirement 仍有 branch drift |
+| Accessibility trust prompt/check | `Mon/Preferences/UserConfiguration.swift:785-792`、`Mon/Debug/DebugInfo.swift:42-48` | 已有基础授权入口；缺 runtime revoke/recovery 和 macOS 27 contract test |
+| AX observation | `Mon/Model/Application.swift:222-224`、`ApplicationObservation.swift:88-228` | 已覆盖窗口创建、销毁、移动、缩放、聚焦、最小化等通知 |
+| KeyboardShortcuts | `Mon/Managers/HotKeyRegistrar.swift:9-45`，commit `e65216e` | MASShortcut 已移除；只补 migration/冲突/国际键盘验证 |
+| 多显示器坐标修复 | `Mon/Model/Screen.swift:53-74`，commit `3f9508a` | 已按 primary screen 翻转坐标；需加入拓扑回归矩阵 |
+| Release target 空 entitlement | `Mon/Mon.entitlements` | Release 未携带 Debug 的 JIT/library-validation exception |
+| SwiftPM lockfile | `Mon.xcworkspace/xcshareddata/swiftpm/Package.resolved` | 当前 checkout 可重现到 revision；project requirement 仍有 branch drift |
 
 ### 3.2 已确认 gap/risk
 
@@ -181,7 +181,7 @@ Apple 官方硬件表覆盖 M1 及之后的 MacBook Pro/Air、24-inch iMac、Mac
 ### WP2 — AX/CGS/Screen 系统边界隔离与 macOS 27 contract suite（P0，5–9 engineer-days）
 
 **依赖：** WP0、WP1。  
-**涉及：** `Amethyst/Model/Application*.swift`、`Window.swift`、`CGInfo.swift`、`Screen.swift`、`Space.swift`、`Managers/WindowManager.swift`、`WindowTransitionCoordinator.swift`、`FocusFollowsMouseManager.swift`、`Events/HotKeyManager.swift`、`Managers/HotKeyRegistrar.swift`、Silica pin/fork、相关 tests。
+**涉及：** `Mon/Model/Application*.swift`、`Window.swift`、`CGInfo.swift`、`Screen.swift`、`Space.swift`、`Managers/WindowManager.swift`、`WindowTransitionCoordinator.swift`、`FocusFollowsMouseManager.swift`、`Events/HotKeyManager.swift`、`Managers/HotKeyRegistrar.swift`、Silica pin/fork、相关 tests。
 
 **预期改动**
 
@@ -220,7 +220,7 @@ Apple 官方硬件表覆盖 M1 及之后的 MacBook Pro/Air、24-inch iMac、Mac
 ### WP3 — Start at Login、dependencies 与 update API（P1，3–5 engineer-days）
 
 **依赖：** WP1；Sparkle release verification 依赖 WP6。  
-**涉及：** `Amethyst/AppDelegate.swift`、`project.pbxproj`、`Package.resolved`、`Amethyst-Info.plist`、Silica/LoginServiceKit/Sparkle references、preferences/status menu。
+**涉及：** `Mon/AppDelegate.swift`、`project.pbxproj`、`Package.resolved`、`Mon-Info.plist`、Silica/LoginServiceKit/Sparkle references、preferences/status menu。
 
 **预期改动**
 
@@ -290,7 +290,7 @@ Apple 官方硬件表覆盖 M1 及之后的 MacBook Pro/Air、24-inch iMac、Mac
 
 **预期改动**
 
-- 固化配置 precedence：YAML (`~/.amethyst.yml` / XDG) → legacy JSON → UserDefaults/default config，保持当前公开行为。
+- 固化配置 precedence：YAML (`~/.mon.yml` / XDG) → legacy JSON → UserDefaults/default config，保持当前公开行为。
 - 为 encoded `WindowManager`/layout state 添加 version envelope 和 decode failure fallback；坏数据不得阻止 launch。
 - 验证 macOS 27 文件权限/SIP/TCC 下只访问用户主动配置的路径，不尝试其他开发者 app containers。
 - 对 JavaScriptCore custom layouts 同时验证 Debug/Release；确认 Release 不需要 JIT/library-validation exceptions 后，最小化 Debug entitlements。
@@ -367,7 +367,7 @@ Apple 官方硬件表覆盖 M1 及之后的 MacBook Pro/Air、24-inch iMac、Mac
 | Spaces | separate Spaces on/off；1/多 Space；full screen；Stage Manager on/off；Mission Control animation setting variants |
 | Permissions | fresh install denied/granted；runtime revoke；TCC reset；Screen Recording not granted（应不被误要求） |
 | Target apps | AppKit、SwiftUI、Electron/Chromium、Catalyst、不可 resize window、dialog/sheet、full-screen app |
-| Lifecycle | launch/login/reboot；sleep/wake；display sleep；target app crash/relaunch；Amethyst update/relaunch |
+| Lifecycle | launch/login/reboot；sleep/wake；display sleep；target app crash/relaunch；Mon update/relaunch |
 | Configuration | defaults；YAML；JSON；custom JS；corrupt state；Display × Space layouts（旧版 0.24.3 profile 暂不验证） |
 
 **预期改动**
@@ -404,7 +404,7 @@ Apple 官方硬件表覆盖 M1 及之后的 MacBook Pro/Air、24-inch iMac、Mac
 - 发布 Intel/macOS 26 end-of-support notice，保留最后兼容版本下载链接；Sparkle 必须让旧系统停留在该版本而不是下载 arm64-only update。
 - 更新 Accessibility、Login Items、故障诊断的 System Settings 路径和截图。
 - 记录 Space/private API degradation、日志收集、TCC reset 和 safe rollback 方法。
-- Bug template 增加 exact OS build、Mac model/chip、display topology、separate Spaces/Stage Manager、permission state、Amethyst build。
+- Bug template 增加 exact OS build、Mac model/chip、display topology、separate Spaces/Stage Manager、permission state、Mon build。
 
 **兼容策略**
 

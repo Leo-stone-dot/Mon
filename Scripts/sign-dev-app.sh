@@ -7,7 +7,7 @@ set -euo pipefail
 # Debug build before testing Accessibility behavior, so the TCC grant survives
 # rebuilds.
 
-app_path=${1:-build/DerivedData/Build/Products/Debug/Amethyst.app}
+app_path=${1:-build/DerivedData/Build/Products/Debug/Mon.app}
 identity_name=${AMETHYST_DEV_SIGN_IDENTITY:-Amethyst Dev}
 
 if [[ ! -d "$app_path" ]]; then
@@ -19,7 +19,7 @@ codesign \
     --force \
     --deep \
     --sign "$identity_name" \
-    --identifier com.totoleo.Amethyst \
+    --identifier com.totoleo.Mon \
     --timestamp=none \
     "$app_path"
 

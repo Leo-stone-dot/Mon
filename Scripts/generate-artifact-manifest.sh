@@ -30,7 +30,7 @@ def capture(*command)
 end
 
 info_plist = File.join(app_path, "Contents", "Info.plist")
-package_resolved = "Amethyst.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+package_resolved = "Mon.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 dependencies = JSON.parse(File.read(package_resolved)).fetch("pins").map do |pin|
   state = pin.fetch("state")
   {

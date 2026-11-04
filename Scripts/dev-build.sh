@@ -13,8 +13,8 @@ if [[ ${1:-} == "--run" ]]; then
 fi
 
 xcodebuild \
-    -workspace Amethyst.xcworkspace \
-    -scheme Amethyst \
+    -workspace Mon.xcworkspace \
+    -scheme Mon \
     -configuration Debug \
     -destination 'platform=macOS,arch=arm64' \
     -derivedDataPath build/DerivedData \
@@ -29,8 +29,8 @@ Scripts/bootstrap-dev-signing.sh >/dev/null
 Scripts/sign-dev-app.sh
 
 if [[ "$run_after_build" == true ]]; then
-    osascript -e 'tell application id "com.totoleo.Amethyst" to quit' >/dev/null 2>&1 || true
+    osascript -e 'tell application id "com.totoleo.Mon" to quit' >/dev/null 2>&1 || true
     sleep 1
-    open build/DerivedData/Build/Products/Debug/Amethyst.app
-    echo "relaunched Amethyst with the development-signed build"
+    open build/DerivedData/Build/Products/Debug/Mon.app
+    echo "relaunched Mon with the development-signed build"
 fi

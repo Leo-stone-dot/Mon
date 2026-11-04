@@ -74,36 +74,36 @@
 
 ## Sources
 
-- S3: `Amethyst/Managers/WindowTransitionCoordinator.swift` defines `SpaceCommandAvailability` and `spaceCommandAvailability()`; `Amethyst/AppDelegate.swift` displays its disabled reason in the status menu.
-- S5: `Amethyst/Preferences/UserConfiguration.swift` defines `ConfigurationFileLoad` and parse helpers that produce configuration load diagnostics.
-- S6: `Amethyst/AppDelegate.swift` defines `RuntimeStatusPresentation` and `updateRuntimeStatusItems()`.
-- S7: `Amethyst.xcodeproj/project.pbxproj` and `Scripts/verify-support-contract.sh` define the current 26.0 deployment floor.
-- S8: `Amethyst/Debug/DebugInfo.swift` defines `runtimeDiagnostics()` and `spaceDiagnostics()`.
-- S9: `Amethyst/AppDelegate.swift` defines `LoginItemMigrationNotice` and `presentLoginItemMigrationNoticeIfNecessary()`.
+- S3: `Mon/Managers/WindowTransitionCoordinator.swift` defines `SpaceCommandAvailability` and `spaceCommandAvailability()`; `Mon/AppDelegate.swift` displays its disabled reason in the status menu.
+- S5: `Mon/Preferences/UserConfiguration.swift` defines `ConfigurationFileLoad` and parse helpers that produce configuration load diagnostics.
+- S6: `Mon/AppDelegate.swift` defines `RuntimeStatusPresentation` and `updateRuntimeStatusItems()`.
+- S7: `Mon.xcodeproj/project.pbxproj` and `Scripts/verify-support-contract.sh` define the current 26.0 deployment floor.
+- S8: `Mon/Debug/DebugInfo.swift` defines `runtimeDiagnostics()` and `spaceDiagnostics()`.
+- S9: `Mon/AppDelegate.swift` defines `LoginItemMigrationNotice` and `presentLoginItemMigrationNoticeIfNecessary()`.
 - S10: `Scripts/bootstrap-dev-signing.sh` and `Scripts/sign-dev-app.sh` create and apply the local development signing identity.
-- S11: `Amethyst/Model/CGInfo.swift` defines `SpaceContractProbe`; `Amethyst/Debug/DebugInfo.swift` prints its result.
+- S11: `Mon/Model/CGInfo.swift` defines `SpaceContractProbe`; `Mon/Debug/DebugInfo.swift` prints its result.
 - S12: `Scripts/release-preflight.sh` performs the checks; `Scripts/test-release-preflight.sh` verifies its failure paths.
-- S13: `Amethyst/Layout/Layouts/CustomLayout.swift` logs the custom layout file path on load failure.
-- S14: `Amethyst/Model/Space.swift` defines `isUserSpace`; macOS 26 reports user desktops with type 4.
-- S15: `Scripts/dev-build.sh` builds, signs with the development identity, and optionally relaunches; `Amethyst/Managers/ScreenManager.swift` persists `currentLayoutIndexBySpaceUUID`.
-- S17: `AmethystTests/Tests/Managers/ScreenManagerTests.swift` verifies that layout indices are isolated per Space UUID and encoded for multiple Spaces.
-- S18: `Amethyst/Amethyst-Info.plist` defines the bundle metadata; `Scripts/ci-archive.sh` inspects the built bundle before distribution.
-- S19: `Amethyst/Managers/ScreenManager.swift` loads a Space's layouts before its selection and resolves saved indices through encoded keys; `AmethystTests/Tests/Managers/ScreenManagerTests.swift` exercises actual encoding/decoding across displays, Spaces, and changed lists.
+- S13: `Mon/Layout/Layouts/CustomLayout.swift` logs the custom layout file path on load failure.
+- S14: `Mon/Model/Space.swift` defines `isUserSpace`; macOS 26 reports user desktops with type 4.
+- S15: `Scripts/dev-build.sh` builds, signs with the development identity, and optionally relaunches; `Mon/Managers/ScreenManager.swift` persists `currentLayoutIndexBySpaceUUID`.
+- S17: `MonTests/Tests/Managers/ScreenManagerTests.swift` verifies that layout indices are isolated per Space UUID and encoded for multiple Spaces.
+- S18: `Mon/Mon-Info.plist` defines the bundle metadata; `Scripts/ci-archive.sh` inspects the built bundle before distribution.
+- S19: `Mon/Managers/ScreenManager.swift` loads a Space's layouts before its selection and resolves saved indices through encoded keys; `MonTests/Tests/Managers/ScreenManagerTests.swift` exercises actual encoding/decoding across displays, Spaces, and changed lists.
 - S20: `docs/release-maintainer-handoff.md`; Apple Developer ID and notarization documentation; local `notarytool store-credentials --help`.
 - S21: `Scripts/generate-artifact-manifest.sh` records archive and dependency evidence; its self-test exercises acceptance and failure paths.
-- S23: `Amethyst/Managers/ScreenManager.swift` defines `SpaceReflowPolicy`; `Amethyst/Managers/Windows.swift` selects current-display windows when Space data is unavailable; associated ScreenManager and CGSpacesInfo tests cover the degradation boundary.
+- S23: `Mon/Managers/ScreenManager.swift` defines `SpaceReflowPolicy`; `Mon/Managers/Windows.swift` selects current-display windows when Space data is unavailable; associated ScreenManager and CGSpacesInfo tests cover the degradation boundary.
 - S24: `Scripts/test-release-custom-layouts.sh` runs `CustomLayoutTests` in Release configuration with `ENABLE_TESTABILITY=YES`; CI executes the script after Debug tests.
-- S25: `Amethyst/AppDelegate.swift` defines `LayoutStateRestorePresentation` and adds the title to runtime status items; `docs/macos-27-support.md` documents the recovery action.
-- S26: `Amethyst/AppDelegate.swift` defines `SecureInputPresentation`; `SpaceDragTransaction` fails before posting drag events when Secure Input is enabled; `docs/macos-27-support.md` documents the status item.
+- S25: `Mon/AppDelegate.swift` defines `LayoutStateRestorePresentation` and adds the title to runtime status items; `docs/macos-27-support.md` documents the recovery action.
+- S26: `Mon/AppDelegate.swift` defines `SecureInputPresentation`; `SpaceDragTransaction` fails before posting drag events when Secure Input is enabled; `docs/macos-27-support.md` documents the status item.
 - S27: `Scripts/dev-test.sh` builds tests before launch, signs the Debug test host with the development identity, then runs tests without rebuilding; `.github/workflows/tests.yml` requires the `ci` runner label.
-- S28: `Amethyst/Preferences/UserConfiguration.swift` defines `AccessibilityClient`; `DebugInfo` and UserConfiguration tests inject fake clients to distinguish prompted and non-prompted checks.
-- S29: `Amethyst/Model/CGInfo.swift` defines `ScreenTopologyClient`; `Screens` and focus-follows-mouse receive it through `WindowManager`, and the CGSpacesInfo fixture constructs it without system APIs.
-- S30: `Amethyst/Model/CGInfo.swift` defines `EventPostingClient`; Space drag, mouse-follows-focus, AX window focus, and screen focus reuse it; CGSpacesInfo tests inject its closures.
+- S28: `Mon/Preferences/UserConfiguration.swift` defines `AccessibilityClient`; `DebugInfo` and UserConfiguration tests inject fake clients to distinguish prompted and non-prompted checks.
+- S29: `Mon/Model/CGInfo.swift` defines `ScreenTopologyClient`; `Screens` and focus-follows-mouse receive it through `WindowManager`, and the CGSpacesInfo fixture constructs it without system APIs.
+- S30: `Mon/Model/CGInfo.swift` defines `EventPostingClient`; Space drag, mouse-follows-focus, AX window focus, and screen focus reuse it; CGSpacesInfo tests inject its closures.
 - S31: `Scripts/verify-toolchain-locks.sh` verifies Mintfile, Gemfile.lock, Package.resolved, bootstrap behavior, and the absence of an Xcode formatting phase.
 - S32: `docs/macos-27-implementation-status.md` maps adaptation work packages to current source/script evidence and outstanding physical or maintainer evidence.
 - S33: `AppDelegate` presents the Space tiling action; `ScreenManager` persists layout and tiling state immediately; README and support documentation describe the behavior.
 - S34: `DebugInfo.separateSpacesAreEnabled()` initializes `NSApplication.shared` before reading `NSScreen.screensHaveSeparateSpaces`; `AppDelegateTests` verifies the order through injected closures.
 - S35: `Scripts/ci-archive.sh` produces the arm64 Release archive; the local package was re-signed with `Scripts/sign-dev-app.sh` and enclosed in a verified DMG without production release credentials.
-- S36: `Amethyst/Model/Space.swift` defines `isFullscreen` and `hasStableIdentifier`; `Amethyst/Model/CGInfo.swift` parses `fs_wid`; `Amethyst/Managers/ScreenManager.swift` keys state by `Space state key` and seeds new Spaces from `DisplayDefaults`; `Amethyst/Preferences/UserConfiguration.swift` persists `display-defaults`; `Amethyst/Preferences/DisplaysPreferencesViewController.swift` presents the per-display defaults and Space list.
-- S37: `Amethyst/Preferences/DisplaysPreferencesViewController.swift` presents desktops by ordinal and follows the macOS Human Interface Guidelines for settings panes, labels, layout, and toggles; `Amethyst/View/PreferencesWindow.swift` keeps the window title in sync with the visible pane.
+- S36: `Mon/Model/Space.swift` defines `isFullscreen` and `hasStableIdentifier`; `Mon/Model/CGInfo.swift` parses `fs_wid`; `Mon/Managers/ScreenManager.swift` keys state by `Space state key` and seeds new Spaces from `DisplayDefaults`; `Mon/Preferences/UserConfiguration.swift` persists `display-defaults`; `Mon/Preferences/DisplaysPreferencesViewController.swift` presents the per-display defaults and Space list.
+- S37: `Mon/Preferences/DisplaysPreferencesViewController.swift` presents desktops by ordinal and follows the macOS Human Interface Guidelines for settings panes, labels, layout, and toggles; `Mon/View/PreferencesWindow.swift` keeps the window title in sync with the visible pane.
 - S38: `ScreenManager.setLayout` enables tiling and keeps Space-specific layouts; `decodedLayouts` preserves Space-specific layouts; `DisplaysPreferencesViewController` is the single layout configuration surface after the status-menu Layouts entry and Layouts pane removal.

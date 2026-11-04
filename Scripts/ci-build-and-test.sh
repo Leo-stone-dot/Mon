@@ -20,15 +20,15 @@ fi
 
 xcodebuild \
     -resolvePackageDependencies \
-    -workspace Amethyst.xcworkspace \
-    -scheme Amethyst \
+    -workspace Mon.xcworkspace \
+    -scheme Mon \
     -onlyUsePackageVersionsFromResolvedFile
 
 set -o pipefail
 xcodebuild \
-    -workspace Amethyst.xcworkspace \
-    -scheme Amethyst \
-    -testPlan Amethyst \
+    -workspace Mon.xcworkspace \
+    -scheme Mon \
+    -testPlan Mon \
     -destination 'platform=macOS,arch=arm64' \
     -derivedDataPath build/DerivedData \
     -onlyUsePackageVersionsFromResolvedFile \

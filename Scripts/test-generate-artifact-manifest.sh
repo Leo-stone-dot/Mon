@@ -5,9 +5,9 @@ set -euo pipefail
 temporary_directory=$(mktemp -d "${TMPDIR:-/tmp}/amethyst-manifest-test.XXXXXX")
 trap 'rm -rf "$temporary_directory"' EXIT
 
-app_path=$temporary_directory/Amethyst.app
+app_path=$temporary_directory/Mon.app
 info_plist=$app_path/Contents/Info.plist
-archive_path=$temporary_directory/Amethyst.zip
+archive_path=$temporary_directory/Mon.zip
 manifest_path=$temporary_directory/manifest.json
 mkdir -p "$app_path/Contents"
 

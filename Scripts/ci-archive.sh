@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-archive_path=build/Amethyst.xcarchive
-app_path=$archive_path/Products/Applications/Amethyst.app
+archive_path=build/Mon.xcarchive
+app_path=$archive_path/Products/Applications/Mon.app
 
 xcodebuild \
-    -workspace Amethyst.xcworkspace \
-    -scheme Amethyst \
+    -workspace Mon.xcworkspace \
+    -scheme Mon \
     -configuration Release \
     -destination 'generic/platform=macOS' \
     -archivePath "$archive_path" \

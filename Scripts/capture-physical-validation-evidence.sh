@@ -42,15 +42,15 @@ capture hardware.txt system_profiler SPHardwareDataType
 capture displays.txt system_profiler SPDisplaysDataType
 capture git-commit.txt git rev-parse HEAD
 capture git-status.txt git status --short
-capture package-resolved-sha256.txt shasum -a 256 Amethyst.xcworkspace/xcshareddata/swiftpm/Package.resolved
+capture package-resolved-sha256.txt shasum -a 256 Mon.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 if [[ -f build/release-manifest.json ]]; then
     cp build/release-manifest.json "$output_dir/release-manifest.json"
     capture release-manifest-sha256.txt shasum -a 256 build/release-manifest.json
 fi
 
-if [[ -d build/Amethyst.xcarchive/Products/Applications/Amethyst.app ]]; then
-    app_path=build/Amethyst.xcarchive/Products/Applications/Amethyst.app
+if [[ -d build/Mon.xcarchive/Products/Applications/Mon.app ]]; then
+    app_path=build/Mon.xcarchive/Products/Applications/Mon.app
     capture app-info.txt plutil -p "$app_path/Contents/Info.plist"
     {
         while IFS= read -r candidate; do
@@ -78,11 +78,11 @@ fi
 } > "$output_dir/spaces-stage-manager-defaults.txt"
 
 for candidate_app in \
-    build/Amethyst.xcarchive/Products/Applications/Amethyst.app \
-    build/DerivedData/Build/Products/Debug/Amethyst.app \
-    build/DerivedData/Build/Products/Release/Amethyst.app
+    build/Mon.xcarchive/Products/Applications/Mon.app \
+    build/DerivedData/Build/Products/Debug/Mon.app \
+    build/DerivedData/Build/Products/Release/Mon.app
 do
-    executable=$candidate_app/Contents/MacOS/Amethyst
+    executable=$candidate_app/Contents/MacOS/Mon
     if [[ -x "$executable" ]]; then
         "$executable" --debug-info > "$output_dir/debug-info.txt" 2>&1 || true
         break

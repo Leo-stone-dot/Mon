@@ -21,11 +21,11 @@ A clear and concise description of what you expected to happen.
 - App types if known: AppKit / SwiftUI / Electron or Chromium / Catalyst / other
 - Window type: normal window / dialog or sheet / full-screen / not resizable / other
 
-**Amethyst build**
+**Mon build**
 - Version:
 - Build number:
 - Install source: direct download / Homebrew / local build / other
-- Artifact architecture from `lipo -archs /Applications/Amethyst.app/Contents/MacOS/Amethyst`:
+- Artifact architecture from `lipo -archs /Applications/Mon.app/Contents/MacOS/Mon`:
 
 **Mac and OS**
 - Exact macOS version and build from `sw_vers`:
@@ -57,12 +57,12 @@ If applicable, add screenshots to help explain your problem.
 
 **Debug Info**
 ```
-$ /Applications/Amethyst.app/Contents/MacOS/Amethyst --debug-info [--include-apps]
+$ /Applications/Mon.app/Contents/MacOS/Mon --debug-info [--include-apps]
 ```
 Note: `--include-apps` will list your manageable applications, but is optional if you don't want to list that.
 
 **Logs and validation evidence**
-- Attach relevant Amethyst logs if available.
+- Attach relevant Mon logs if available.
 - Review the macOS 27 support guide before filing issues specific to macOS 27:
   `docs/macos-27-support.md`
 - For macOS 27 release candidates or validation sessions, attach the output directory from:

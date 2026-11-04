@@ -1,10 +1,10 @@
 # Custom Layouts (beta)
 
-Amethyst supports implementing custom layouts via JavaScript.
+Mon supports implementing custom layouts via JavaScript.
 
 ## Installing
 
-Layouts are located in `~/Library/Application Support/Amethyst/Layouts/`. This directory is automatically created when Amethyst is first launched. JavaScript files in this directory will automatically be picked up and keyed by the name of the file; e.g., `my-cool-layout.js` will be available as a layout with the key `my-cool-layout`.
+Layouts are located in `~/Library/Application Support/Mon/Layouts/`. This directory is automatically created when Mon is first launched. JavaScript files in this directory will automatically be picked up and keyed by the name of the file; e.g., `my-cool-layout.js` will be available as a layout with the key `my-cool-layout`.
 
 At the moment, files must be manually moved to this directory. There is no way to import them through the app.
 
@@ -19,7 +19,7 @@ Open the status-menu **Layouts** submenu after focusing a window on the target
 display. Its disabled first line identifies the target display and Space. If
 there is no focused window, the menu uses the display under the mouse cursor.
 A layout selection is persisted immediately; it does not need to wait for
-Amethyst to quit.
+Mon to quit.
 
 ## Defining a Layout
 
@@ -73,7 +73,7 @@ A function that takes two arguments—`ratio` and `state`—and must return a ne
 
 ### Mouse Resizing
 
-Amethyst supports changing the relative ratios of windows when changing the size of windows by dragging them with the cursor. By default, these ratios are recommended by calling the `recommendMainPaneRatio` layout property, and happen on the horizontal axis. When the window is resized, the system determines what ratio is appropriate for the new width given the dimensions of the screen it is on. These values are clamped to [0, 1].
+Mon supports changing the relative ratios of windows when changing the size of windows by dragging them with the cursor. By default, these ratios are recommended by calling the `recommendMainPaneRatio` layout property, and happen on the horizontal axis. When the window is resized, the system determines what ratio is appropriate for the new width given the dimensions of the screen it is on. These values are clamped to [0, 1].
 
 To scale along a different axis, you can specify the `unconstrainedDimension` and `isMain` properties of each window's frame. The dimension determines the axis along which window frame changes will cause recommended ratio changes, and the `isMain` property determines which part of the ratio the window applies to.
 
@@ -133,13 +133,13 @@ Current changes are:
 
 ## Examples
 
-There are several layouts defined for automated tests that can serve as examples. They are in [AmethystTests/Model/CustomLayouts/](../AmethystTests/Model/CustomLayouts/).
+There are several layouts defined for automated tests that can serve as examples. They are in [MonTests/Model/CustomLayouts/](../MonTests/Model/CustomLayouts/).
 
 ### Example: equal-height rows
 
 The built-in Row layout reserves half of the screen for the main pane, so the
 first window is larger. To give every window an equal-height row, save this as
-`~/Library/Application Support/Amethyst/Layouts/equal-row.js`:
+`~/Library/Application Support/Mon/Layouts/equal-row.js`:
 
 ```js
 function layout() {
@@ -183,7 +183,7 @@ function layout() {
 ```
 
 Then enable `Equal Row` in Preferences → Layouts, or add `equal-row` to the
-`layouts` list in `~/.amethyst.yml`. Restart Amethyst after adding the file so
+`layouts` list in `~/.mon.yml`. Restart Mon after adding the file so
 the layout is discovered.
 
 For the built-in Row layout, an alternative is to increase the main pane count

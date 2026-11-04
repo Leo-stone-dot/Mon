@@ -2,14 +2,14 @@
 
 ## How To Enable
 
-In the General tab of Amethyst's preferences, there is a Maximum Window Count field. Setting this field to a value greater than 0 will enable the feature.
+In the General tab of Mon's preferences, there is a Maximum Window Count field. Setting this field to a value greater than 0 will enable the feature.
 
 ## Behavior
 
 * Windows set to float using the keyboard shortcut will not be minimized.
 * Main windows will not be minimized. Enable ‘Send new windows to main pane’ to have the oldest window cycle out. Disable the setting to exclude main panes, which will act as a persistent workspace alongside other windows.
 * The window limit applies on a per-screen basis.
-* Disabling Amethyst will disable window limits. Use the Floating layout to apply window limits without any window tiling.
+* Disabling Mon will disable window limits. Use the Floating layout to apply window limits without any window tiling.
 
 ## Recommendations
 

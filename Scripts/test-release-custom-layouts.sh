@@ -17,16 +17,16 @@ fi
 
 release_settings=$(xcodebuild \
     -showBuildSettings \
-    -workspace Amethyst.xcworkspace \
-    -scheme Amethyst \
+    -workspace Mon.xcworkspace \
+    -scheme Mon \
     -configuration Release \
     -destination 'platform=macOS,arch=arm64' \
     ARCHS=arm64 \
     CODE_SIGNING_ALLOWED=NO)
 
-grep -q 'CODE_SIGN_ENTITLEMENTS = Amethyst/Amethyst.entitlements' <<< "$release_settings"
+grep -q 'CODE_SIGN_ENTITLEMENTS = Mon/Mon.entitlements' <<< "$release_settings"
 grep -q 'ENABLE_HARDENED_RUNTIME = YES' <<< "$release_settings"
-if [[ "$(plutil -extract 0 raw Amethyst/Amethyst.entitlements 2>/dev/null || true)" != "" ]]; then
+if [[ "$(plutil -extract 0 raw Mon/Mon.entitlements 2>/dev/null || true)" != "" ]]; then
     echo "Release entitlements must remain empty" >&2
     exit 1
 fi
@@ -38,15 +38,15 @@ if [[ -e "$result_bundle_path" ]]; then
 fi
 
 xcodebuild \
-    -workspace Amethyst.xcworkspace \
-    -scheme Amethyst \
-    -testPlan Amethyst \
+    -workspace Mon.xcworkspace \
+    -scheme Mon \
+    -testPlan Mon \
     -configuration Release \
     -destination 'platform=macOS,arch=arm64' \
     -derivedDataPath "$derived_data_path" \
     -clonedSourcePackagesDirPath "$source_packages_path" \
     -onlyUsePackageVersionsFromResolvedFile \
-    -only-testing:AmethystTests/CustomLayoutTests \
+    -only-testing:MonTests/CustomLayoutTests \
     -resultBundlePath "$result_bundle_path" \
     clean test \
     ARCHS=arm64 \

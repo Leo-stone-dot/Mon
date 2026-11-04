@@ -19,7 +19,7 @@ For macOS 26/27 issues, include:
 - `sw_vers`
 - Mac model and chip
 - `uname -m`
-- Amethyst version/build and install source
+- Mon version/build and install source
 - Display topology from `system_profiler SPDisplaysDataType` when display or
   Space behavior is involved
 - Separate Spaces, Stage Manager, full-screen Space, and Mission Control
@@ -41,19 +41,19 @@ pass on a physical macOS 27.2 Apple silicon Mac before claiming that evidence.
 
 ## Accessibility and TCC reset
 
-Amethyst requires Accessibility permission. On macOS 27, confirm the exact
+Mon requires Accessibility permission. On macOS 27, confirm the exact
 permission state in System Settings before reporting a window-management
 failure.
 
 To reset Accessibility state for a clean validation run:
 
 ```bash
-tccutil reset Accessibility com.totoleo.Amethyst
+tccutil reset Accessibility com.totoleo.Mon
 ```
 
-After resetting, quit and relaunch Amethyst, grant Accessibility again, and
+After resetting, quit and relaunch Mon, grant Accessibility again, and
 record whether the issue reproduces before and after the grant. Screen
-Recording is not expected to be required for normal Amethyst window management;
+Recording is not expected to be required for normal Mon window management;
 if macOS prompts for it, include that prompt in the report.
 
 ### Local Accessibility testing with development builds
@@ -67,7 +67,7 @@ Scripts/dev-build.sh --run
 ```
 
 The first run creates the `Amethyst Dev` identity. Then add
-`build/DerivedData/Build/Products/Debug/Amethyst.app` to
+`build/DerivedData/Build/Products/Debug/Mon.app` to
 System Settings → Privacy & Security → Accessibility. Because the identity is
 stable, later rebuilds keep the same grant after `Scripts/sign-dev-app.sh` runs.
 
@@ -89,13 +89,13 @@ Space-dependent commands may be disabled when private Space APIs or event
 posting are unavailable. Core tiling, focus, and screen movement should
 continue.
 
-When Space discovery is unavailable, Amethyst selects visible active windows
+When Space discovery is unavailable, Mon selects visible active windows
 on the current display without applying a Space-ID filter. It retains the
 currently selected layout until Space discovery recovers. Once it can identify
 the current desktop again, it resumes the layout stored for that desktop.
 
 On macOS 26, private CGS reports user desktop Spaces with type `4`; older
-releases used type `0`. Amethyst treats type `4` and legacy type `0` with a
+releases used type `0`. Mon treats type `4` and legacy type `0` with a
 non-empty UUID as user Spaces. If a layout selection does not restore after an
 OS update, check `--debug-info` for the reported Space types and contract
 result; normal tiling should still remain available during this degradation.
@@ -121,7 +121,7 @@ screen movement remain available.
 ## Layout state recovery
 
 If the status menu displays **Saved layout state could not be restored; using
-default layouts**, Amethyst encountered an invalid or newer saved layout state
+default layouts**, Mon encountered an invalid or newer saved layout state
 and started with the configured default layouts. It leaves the original state
 and one backup in UserDefaults for diagnosis; it does not remove YAML, JSON,
 custom layout files, shortcuts, floating rules, or margins.
@@ -146,12 +146,12 @@ affects all windows.
 ## Start at Login
 
 macOS 27 builds use `SMAppService.mainApp`. Legacy login item state is not
-migrated. If Amethyst does not start at login:
+migrated. If Mon does not start at login:
 
-1. Open the Amethyst status menu.
-2. Toggle **Start Amethyst on Login**.
+1. Open the Mon status menu.
+2. Toggle **Start Mon on Login**.
 3. If the menu says approval is required, open System Settings and approve
-   Amethyst in Login Items.
+   Mon in Login Items.
 4. Record the menu state and System Settings state in the issue.
 
 ## Rollback
@@ -162,10 +162,10 @@ release from the GitHub releases page.
 
 To roll back on a supported macOS 26+ Apple silicon Mac:
 
-1. Quit Amethyst.
-2. Download the previous notarized Amethyst artifact from the releases page.
+1. Quit Mon.
+2. Download the previous notarized Mon artifact from the releases page.
 3. Replace the application bundle.
-4. Launch Amethyst and re-check Accessibility and Login Items state.
+4. Launch Mon and re-check Accessibility and Login Items state.
 5. Attach the version/build before and after rollback.
 
 Do not run macOS 26-only setup steps on macOS 25 or earlier machines.

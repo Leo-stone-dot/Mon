@@ -1,37 +1,36 @@
-# Amethyst
+# Mon
 
-[![Discussions](https://img.shields.io/github/discussions/ianyh/Amethyst)](https://github.com/ianyh/Amethyst/discussions)
-[![Open Source Helpers](https://www.codetriage.com/ianyh/amethyst/badges/users.svg)](https://www.codetriage.com/ianyh/amethyst)
-[![Reviewed by Hound](https://img.shields.io/badge/Reviewed_by-Hound-8E64B0.svg)](https://houndci.com)
+Mon is a tiling window manager for macOS, forked from
+[Amethyst](https://github.com/ianyh/Amethyst) and built along the lines of
+[xmonad](https://xmonad.org/).
 
-Tiling window manager for macOS along the lines of [xmonad](https://xmonad.org/).
+> This is an independent fork. It is not affiliated with, endorsed by, or
+> supported by the Amethyst project. Upstream downloads, documentation, and
+> support remain at [ianyh/Amethyst](https://github.com/ianyh/Amethyst).
 
-> This repository is a personal fork of [ianyh/Amethyst](https://github.com/ianyh/Amethyst).
-> It is not the official Amethyst build; the official downloads and support
-> remain with the upstream project.
+## Differences from upstream
 
-![Windows](https://ianyh.com/amethyst/images/windows.png)
+- Targets macOS 26 or later on Apple silicon (`arm64`) only.
+- Configures layout and tiling per display and per desktop in Preferences →
+  Displays.
+- Has no in-app updater or update feed; install new builds manually.
+- Uses the bundle identifier `com.totoleo.Mon`, so it can coexist with the
+  official Amethyst app.
 
-If you want to learn more about tiling window managers and the features of Amethyst there are some great community resources on YouTube.
+## Getting Mon
 
-[Boost your MacOS PRODUCTIVITY with Amethyst | Tiling Window Manager](https://www.youtube.com/watch?v=7Z9-Ry4yGNc)
+This fork builds from source. There is no automatic update channel.
 
-## Getting Amethyst
+Requirements: an Apple silicon Mac, macOS 26 or later, Xcode 27.2, and the
+macOS 27.2 SDK. Build with `Scripts/ci-build-and-test.sh`, then copy
+`build/DerivedData/Build/Products/Release/Mon.app` to `/Applications`.
 
-This fork builds from source; it does not publish an automatic update channel.
-Build the app locally with the steps below and copy it to `/Applications`.
+## Using Mon
 
-The fork targets macOS 26 or later on Apple silicon. Release artifacts contain
-only the `arm64` architecture; Intel Macs, Rosetta, and macOS 25 or earlier are
-not supported. Official Amethyst releases for other configurations remain
-available from the [upstream releases page](https://github.com/ianyh/Amethyst/releases).
-
-## Using Amethyst
-
-Amethyst must be given permissions to use the accessibility APIs in the Privacy & Security tab, Privacy -> Accessibilty.
+Mon must be given permissions to use the accessibility APIs in the Privacy & Security tab, Privacy -> Accessibilty.
 
 <p align="center">
-  <img style="text-align: center; border-radius:4px;" width="500px" src="docs/images/accessibility-permission.png" alt="Give Accessibility permission to Amethyst under Privicay and Security." />
+  <img style="text-align: center; border-radius:4px;" width="500px" src="docs/images/accessibility-permission.png" alt="Give Accessibility permission to Mon under Privicay and Security." />
 </p>
 
 **_Important note_**: You will probably want to disable `Automatically rearrange Spaces based on most recent use` (found under Mission Control in System Preferences). This setting is enabled by default, and will cause your Spaces to swap places based on use. This makes keyboard navigation between Spaces unpredictable.
@@ -56,7 +55,7 @@ For macOS 27 support, rollback, and validation evidence requirements, see
 
 ### Keyboard Shortcuts
 
-Amethyst uses two modifier combinations (`mod1` and `mod2`) and can optionally use another two (`mod3` and `mod4`).
+Mon uses two modifier combinations (`mod1` and `mod2`) and can optionally use another two (`mod3` and `mod4`).
 
 | Default Shortcut | Description |
 |---|---|
@@ -85,7 +84,7 @@ And defines the following commands, mostly a mapping to xmonad key combinations.
 | `mod2 + k` | Swap focused window clockwise |
 | `mod1 + enter` | Swap focused window with main window |
 | `mod1 + z` | Force windows to be reevaluated |
-| `mod2 + z` | Relaunch Amethyst |
+| `mod2 + z` | Relaunch Mon |
 | `mod2 + left` | Throw focused window to space left |
 | `mod2 + right` | Throw focused window to space right |
 | `mod2 + 1` | Throw focused window to space 1 |
@@ -134,7 +133,7 @@ desktop target; global **Disable Tiling** remains a separate action.
 
 ### Available Layouts
 
-Amethyst allows you to cycle among several different window layouts.
+Mon allows you to cycle among several different window layouts.
 Layouts can also be enabled/disabled to control whether they appear in the cycle sequence at all.
 
 #### Tall
@@ -201,7 +200,7 @@ The rotated version of *Column*, where each window takes up an entire row, exten
 
 #### Floating
 
-This mode makes all windows "floating", allowing you to move and resize them as if Amethyst were temporarily deactivated. Unlike the other modes, this will mean that windows can be placed "on top of" each other, obscuring your view of some windows.
+This mode makes all windows "floating", allowing you to move and resize them as if Mon were temporarily deactivated. Unlike the other modes, this will mean that windows can be placed "on top of" each other, obscuring your view of some windows.
 
 #### Binary Space Partitioning (BSP)
 
@@ -213,9 +212,9 @@ Custom layouts can be implemented via JavaScript. See [Custom Layouts](docs/cust
 
 ### Configuration File
 
-Amethyst supports configuration via YAML in the home directory. See [Configuration Files](docs/configuration-files.md). Note that if configuration file is present, it will override the settings defined via the GUI.
+Mon supports configuration via `~/.mon.yml` (or `~/.config/mon/mon.yml`). Legacy `.amethyst.yml` paths are still read when no Mon config exists. See [Configuration Files](docs/configuration-files.md). A config file overrides the settings defined via the GUI.
 
-## Building Amethyst Locally
+## Building Mon Locally
 
 Local builds require an Apple silicon Mac, macOS 26+, Xcode 27.2, and the macOS
 27.2 SDK. Run `Scripts/bootstrap-tools.sh` once, then use
@@ -232,23 +231,14 @@ notarytool keychain profile. There is no in-app updater or feed in this fork.
 
 If you'd like to contribute please branch off of the `development` branch and open pull requests against it rather than `master`. Otherwise just try to stick to the general style of the code.
 
-## Donating
+## Support upstream
 
-Amethyst is free and always will be. That said, a couple of people have expressed their desire to donate money in appreciation. Given the current political climate I would recommend donating to one of these organizations instead:
+This fork does not accept donations. If Mon is useful to you, consider
+supporting the upstream [Amethyst](https://github.com/ianyh/Amethyst) project
+or one of the organizations the upstream project recommends.
 
-* [American Civil Liberties Union](https://www.aclu.org/)
-* [Planned Parenthood](https://www.plannedparenthood.org/)
-* [Southern Poverty Law Center](https://www.splcenter.org/)
-* [National Resources Defense Council](https://www.nrdc.org/)
-* [International Refugee Assistance Project](https://refugeerights.org/)
-* [NAACP Legal Defense Fund](https://www.naacpldf.org/)
-* [The Trevor Project](https://www.thetrevorproject.org/)
-* [Mexican American Legal Defense Fund](https://www.maldef.org/)
-* [ProPublica](https://www.propublica.org/)
+## License
 
-And a bunch of technology-oriented ones:
-
-* [National Center for Women & Information Technology](https://ncwit.org/about-ncwit/donate/)
-* [girls who code](https://girlswhocode.com/get-involved/)
-* [Trans*H4CK](https://www.transhack.org/sponsorship/)
-* [Black Girls CODE](https://wearebgc.org/donate/)
+Mon is distributed under the MIT License. It contains code from Amethyst,
+copyright (c) 2015 Ian Ynda-Hummel. See [LICENSE.md](LICENSE.md) for the full
+license text and attribution.

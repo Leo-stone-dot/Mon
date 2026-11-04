@@ -11,8 +11,8 @@ case "$mode" in
         ;;
 esac
 
-archive_path=build/Amethyst.xcarchive
-app_path=$archive_path/Products/Applications/Amethyst.app
+archive_path=build/Mon.xcarchive
+app_path=$archive_path/Products/Applications/Mon.app
 
 require_env() {
     local name=$1

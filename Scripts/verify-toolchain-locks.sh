@@ -27,12 +27,12 @@ if ! rg -F 'bundle install --frozen' Scripts/bootstrap-tools.sh >/dev/null; then
     echo "bootstrap must install the locked Gemfile without resolution changes" >&2
     exit 1
 fi
-if rg -n 'swiftlint --fix' Amethyst.xcodeproj/project.pbxproj; then
+if rg -n 'swiftlint --fix' Mon.xcodeproj/project.pbxproj; then
     echo "Xcode build phases must not format source" >&2
     exit 1
 fi
 
-ruby -rjson - Amethyst.xcworkspace/xcshareddata/swiftpm/Package.resolved <<'RUBY'
+ruby -rjson - Mon.xcworkspace/xcshareddata/swiftpm/Package.resolved <<'RUBY'
 lockfile = JSON.parse(File.read(ARGV.fetch(0)))
 missing_revisions = lockfile.fetch("pins").select do |pin|
   pin.fetch("state").fetch("revision", "").empty?
