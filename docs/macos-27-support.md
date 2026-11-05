@@ -7,10 +7,10 @@ For the release contract and approval gates, see
 
 ## Supported installs
 
-macOS 26+ releases support Apple silicon Macs only. New artifacts contain only
-the `arm64` architecture and require macOS 26.0 or later. Intel Macs, Rosetta,
-universal binaries, and macOS 25 or earlier remain on the final pre-migration
-release.
+macOS 26+ builds support Apple silicon Macs only. New artifacts contain only
+the `arm64` architecture and require macOS 26.0 or later. This fork does not
+publish builds for Intel Macs, Rosetta, universal binaries, or macOS 25 and
+earlier.
 
 ## Evidence for bug reports
 
@@ -133,9 +133,9 @@ backup. The next launch will create state from the current configuration.
 ## Per-display and per-Space tiling
 
 The selected layout is saved independently for each display × Space target.
-Open **Layouts** after focusing a window on the intended display; the first
-disabled menu item identifies that display and Space. Layout selections are
-saved immediately.
+Use Preferences → Displays to choose the intended display and desktop. Layout
+selections are saved immediately. Mon has no Layouts preference pane or
+layout-selection submenu.
 
 To disable tiling only for the target display and Space, choose **Disable
 Tiling for This Display & Space**. Other displays and Spaces continue using
@@ -156,16 +156,20 @@ migrated. If Mon does not start at login:
 
 ## Rollback
 
-macOS 26+ artifacts must not be offered to Intel Macs or macOS 25 and earlier.
-Older systems should remain on the final pre-migration Intel-compatible
-release from the GitHub releases page.
+The repository's GitHub Releases are source-only and do not provide a previous
+Mon application bundle. Rollback therefore requires an artifact you built or
+saved yourself. A maintainer may distribute a Developer ID signed and notarized
+ZIP separately, but the source-release workflow does not attach it.
 
 To roll back on a supported macOS 26+ Apple silicon Mac:
 
-1. Quit Mon.
-2. Download the previous notarized Mon artifact from the releases page.
-3. Replace the application bundle.
-4. Launch Mon and re-check Accessibility and Login Items state.
-5. Attach the version/build before and after rollback.
+1. Before replacing Mon, save the current application bundle or retain its exact
+   source revision and build environment.
+2. Quit Mon.
+3. Restore that saved bundle, or check out the previous revision and rebuild it.
+4. Replace `/Applications/Mon.app` and launch Mon.
+5. Re-check Accessibility and Login Items state, then record the version/build
+   before and after rollback.
 
-Do not run macOS 26-only setup steps on macOS 25 or earlier machines.
+Mon does not publish an Intel-compatible rollback artifact. Do not install a
+macOS 26+ `arm64` build on Intel hardware or macOS 25 and earlier.

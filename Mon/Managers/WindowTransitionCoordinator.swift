@@ -221,10 +221,16 @@ class WindowTransitionCoordinator<Target: WindowTransitionTarget> {
     }
 
     func spaceCommandAvailability() -> SpaceCommandAvailability {
-        guard let currentFocusedSpace = spaceClient.currentFocusedSpace(),
-              let spaces = spaceClient.spacesForAllScreens(false)
-        else {
+        guard let spaces = spaceClient.spacesForAllScreens(false), !spaces.isEmpty else {
             return .disabled(.spaceInformationUnavailable)
+        }
+
+        // A focused window is an execution-time requirement, not a property of
+        // the Space inventory. With no focused window the next command may still
+        // succeed as soon as a window gains focus, so do not show a persistent
+        // "Space information unavailable" status item.
+        guard let currentFocusedSpace = spaceClient.currentFocusedSpace() else {
+            return .available
         }
 
         guard spaces.contains(currentFocusedSpace) else {

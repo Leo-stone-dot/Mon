@@ -11,6 +11,12 @@ import Silica
 /// layout and tiling behavior of each desktop, plus the defaults for new
 /// desktops on each display.
 final class DisplaysPreferencesViewController: NSViewController {
+    /// Keeps scroll-view content anchored to the visual top when its intrinsic
+    /// height is shorter than the viewport.
+    private final class FlippedDocumentView: NSView {
+        override var isFlipped: Bool { true }
+    }
+
     private struct DisplayEntry {
         let displayID: String
         let name: String
@@ -28,8 +34,9 @@ final class DisplaysPreferencesViewController: NSViewController {
     private enum Metrics {
         static let paneWidth: CGFloat = 548
         static let contentWidth: CGFloat = 500
-        static let labelColumn: CGFloat = 170
-        static let controlColumn: CGFloat = 150
+        static let labelColumn: CGFloat = 150
+        /// Minimum width that keeps the longest built-in layout name readable.
+        static let minimumControlWidth: CGFloat = 180
         static let rowSpacing: CGFloat = 8
         static let sectionSpacing: CGFloat = 16
     }
@@ -41,7 +48,7 @@ final class DisplaysPreferencesViewController: NSViewController {
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
 
-        let documentView = NSView()
+        let documentView = FlippedDocumentView()
         documentView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = documentView
 
@@ -252,7 +259,10 @@ final class DisplaysPreferencesViewController: NSViewController {
         let tilingCheckbox = NSButton(checkboxWithTitle: "Tiling", target: nil, action: nil)
         tilingCheckbox.state = (entry.screenManager?.tilingEnabled(for: space) ?? false) ? .on : .off
 
-        let handler = SpaceConfigurationHandler(space: space, manager: entry.screenManager)
+        let handler = SpaceConfigurationHandler(
+            setLayout: { entry.screenManager?.setLayout($0, for: space) },
+            setTilingEnabled: { entry.screenManager?.setTilingEnabled($0, for: space) }
+        )
         handler.popup = layoutPopup
         handler.checkbox = tilingCheckbox
         layoutPopup.target = handler
@@ -284,22 +294,10 @@ final class DisplaysPreferencesViewController: NSViewController {
         tilingCheckbox.state = (configuredDefaults?.tilingEnabled ?? false) ? .on : .off
 
         let displayID = entry.displayID
-        let handler = DisplayDefaultsHandler { [weak self] tilingEnabled, layoutKey in
-            let defaults = DisplayDefaults(tilingEnabled: tilingEnabled, layoutKey: layoutKey)
+        let changeHandler = DisplayDefaultsChangeHandler { defaults in
             configuration.setDisplayDefaults(defaults, forDisplayID: displayID)
-
-            guard let self = self,
-                  let nsScreen = NSScreen.screens.first(where: { AMScreen(screen: $0).screenID() == displayID }),
-                  let screenManager = self.windowManager?.screenManager(for: AMScreen(screen: nsScreen)),
-                  let space = screenManager.space else {
-                return
-            }
-
-            if let layoutKey = layoutKey {
-                screenManager.setLayout(layoutKey, for: space)
-            }
-            screenManager.setTilingEnabled(tilingEnabled, for: space)
         }
+        let handler = DisplayDefaultsHandler(onChange: changeHandler.handle)
 
         handler.popup = layoutPopup
         handler.checkbox = tilingCheckbox
@@ -316,9 +314,17 @@ final class DisplaysPreferencesViewController: NSViewController {
 
     private func controlRow(nameView: NSView, popup: NSPopUpButton, checkbox: NSButton) -> NSView {
         nameView.translatesAutoresizingMaskIntoConstraints = false
+        nameView.setContentHuggingPriority(.required, for: .horizontal)
         nameView.widthAnchor.constraint(equalToConstant: Metrics.labelColumn).isActive = true
 
-        popup.widthAnchor.constraint(equalToConstant: Metrics.controlColumn).isActive = true
+        // Let the layout popup absorb the row's spare width instead of being
+        // pinned to a fixed width that clips longer layout names.
+        popup.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        popup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        popup.widthAnchor.constraint(greaterThanOrEqualToConstant: Metrics.minimumControlWidth).isActive = true
+        popup.toolTip = popup.titleOfSelectedItem
+
+        checkbox.setContentHuggingPriority(.required, for: .horizontal)
 
         let row = NSStackView(views: [nameView, popup, checkbox])
         row.orientation = .horizontal
@@ -348,33 +354,42 @@ final class DisplaysPreferencesViewController: NSViewController {
 }
 
 /// Applies a layout or tiling change to one desktop Space.
-private final class SpaceConfigurationHandler: NSObject {
-    private let space: Space
-    private weak var manager: ScreenManager<WindowManager<SIApplication>>?
+final class SpaceConfigurationHandler: NSObject {
+    private let setLayout: (String) -> Void
+    private let setTilingEnabled: (Bool) -> Void
     weak var popup: NSPopUpButton?
     weak var checkbox: NSButton?
 
-    init(space: Space, manager: ScreenManager<WindowManager<SIApplication>>?) {
-        self.space = space
-        self.manager = manager
+    init(setLayout: @escaping (String) -> Void, setTilingEnabled: @escaping (Bool) -> Void) {
+        self.setLayout = setLayout
+        self.setTilingEnabled = setTilingEnabled
     }
 
     @objc func layoutChanged(_ sender: NSPopUpButton) {
+        sender.toolTip = sender.titleOfSelectedItem
         guard let layoutKey = sender.selectedItem?.representedObject as? String else {
             return
         }
 
-        manager?.setLayout(layoutKey, for: space)
+        setLayout(layoutKey)
         // Selecting a layout enables tiling for this desktop.
         checkbox?.state = .on
     }
 
     @objc func tilingChanged(_ sender: NSButton) {
-        manager?.setTilingEnabled(sender.state == .on, for: space)
+        setTilingEnabled(sender.state == .on)
     }
 }
 
-/// Applies a display's defaults to the current desktop and persists them.
+/// Persists defaults for desktops subsequently created on a display.
+struct DisplayDefaultsChangeHandler {
+    let persist: (DisplayDefaults) -> Void
+
+    func handle(tilingEnabled: Bool, layoutKey: String?) {
+        persist(DisplayDefaults(tilingEnabled: tilingEnabled, layoutKey: layoutKey))
+    }
+}
+
 private final class DisplayDefaultsHandler: NSObject {
     private let onChange: (_ tilingEnabled: Bool, _ layoutKey: String?) -> Void
     weak var popup: NSPopUpButton?
@@ -385,6 +400,7 @@ private final class DisplayDefaultsHandler: NSObject {
     }
 
     @objc func layoutChanged(_ sender: NSPopUpButton) {
+        sender.toolTip = sender.titleOfSelectedItem
         onChange(checkbox?.state == .on, sender.selectedItem?.representedObject as? String)
     }
 

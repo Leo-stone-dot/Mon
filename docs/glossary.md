@@ -31,6 +31,8 @@
 | tiling | tiling 是窗口管理状态，表示窗口是否由 layout 排列。 | 状态 | 排列控制 | 启用、停用 | S23 |
 | per-desktop layout configuration | per-desktop layout configuration 是按 Space 保存 layout 选择的操作，选择后对该 Space 启用 tiling。 | 操作 | 选择与启用 | 已选择 layout、未选择 layout | S38 |
 | display defaults | display defaults 是按显示器标识保存的配置，记录该显示器新 Space 使用的默认 tiling 开关与默认 layout key。 | 配置 | 默认 tiling 开关与默认 layout key | 已配置、未配置、tiling `true` 或 `false`、layout key 或空 | S36 |
+| layout catalog | layout catalog 是有序集合，包含全部内置算法与通过校验的自定义脚本算法。 | 有序集合 | 候选项与顺序 | 固定顺序内置项、按 key 排序的有效自定义项 | S41 |
+| custom layout schema gate | custom layout schema gate 是校验过程，在脚本进入候选集合或产生窗口位置前检查函数、状态与 frame 数据结构。 | 校验过程 | 脚本结构与 frame 完整性 | 通过、拒绝并保持窗口位置 | S41 |
 
 ## 配置、运行时与诊断
 
@@ -66,6 +68,15 @@
 | source-only GitHub Release | source-only GitHub Release 是只发布 Git tag 源码归档与说明的 GitHub Release。 | 发布记录 | 二进制附件 | 源码归档、无应用 bundle | S40 |
 | development signing identity | development signing identity 是本地代码签名身份。 | 签名身份 | 签名标识 | `Amethyst Dev`、`Mon Dev`、ad-hoc | S10, S39 |
 | app bundle | app bundle 是 macOS 应用目录，包含 `Contents/Info.plist` 与可执行文件。 | 文件系统对象 | 目录结构 | 含 `Contents/Info.plist`、含可执行文件 | S18 |
+
+## 独立 fork 治理
+
+| 术语 | 定义 | Object Class | Property | Value Domain | 来源 |
+| --- | --- | --- | --- | --- | --- |
+| observation channel | observation channel 是公开 GitHub issue 入口，接收可复现问题、兼容性现象、功能想法或安全现象。 | 沟通入口 | 接收内容 | 公开 issue、可由维护者关闭 | S41, S42, S43 |
+| service-level agreement (SLA) | service-level agreement (SLA) 是服务承诺，规定响应、处理或解决工作的时限。 | 服务承诺 | 时限范围 | 已承诺时限、无承诺时限 | S41, S42, S43 |
+| private reporting channel | private reporting channel 是仅限报告者与指定接收者访问的安全问题提交入口。 | 沟通入口 | 可见范围 | 私密、非私密 | S42 |
+| AI-assisted development | AI-assisted development 是软件修改过程，由人工负责并使用生成式工具产出或审阅部分工作成果。 | 软件修改过程 | 参与方式 | 人工与生成式工具共同参与 | S41 |
 
 ## 测试与工具链
 
@@ -113,3 +124,6 @@
 - S38: `ScreenManager.setLayout` enables tiling and keeps Space-specific layouts; `decodedLayouts` preserves Space-specific layouts; `DisplaysPreferencesViewController` is the single layout configuration surface after the status-menu Layouts entry and Layouts pane removal.
 - S39: `Scripts/dev-build.sh`, `Scripts/user-install.sh`, `Scripts/ci-build.sh`, and `Scripts/release-pipeline.sh` define the local development, user self-installation, CI, and public distribution contracts and their signing identities.
 - S40: `.github/workflows/release.yml` validates an existing semantic-version tag and calls `Scripts/github-release.sh`, which publishes release notes without attaching unsigned or locally signed binaries.
+- S41: `Mon/Managers/LayoutType.swift` defines the deterministic catalog; `Mon/Layout/Layouts/CustomLayout.swift` defines load-time and per-reflow validation; `CONTRIBUTING.md` defines the independent fork, AI-assisted development, pull-request, and issue-observation model.
+- S42: `SECURITY.md` defines the public-only security observation route and disclosure limits.
+- S43: `.github/ISSUE_TEMPLATE/*.md` states the public observation, no-SLA, and no-pull-request expectations at issue creation time.

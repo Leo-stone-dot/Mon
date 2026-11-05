@@ -11,7 +11,7 @@ import Cocoa
 
 struct Arguments: ParsableArguments {}
 
-struct Amethyst: ParsableCommand {
+struct Mon: ParsableCommand {
     static var configuration: CommandConfiguration = CommandConfiguration(
         subcommands: [Debug.self, App.self],
         defaultSubcommand: App.self
@@ -20,7 +20,7 @@ struct Amethyst: ParsableCommand {
 
 struct App: ParsableCommand {
     static var configuration: CommandConfiguration = CommandConfiguration(
-        abstract: "Run the Amethyst application."
+        abstract: "Run the Mon application."
     )
 
     mutating func run() throws {
@@ -37,7 +37,7 @@ if CommandLine.arguments.contains("--debug-info") {
     _ = NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
 } else {
     do {
-        var command = try Amethyst.parseAsRoot()
+        var command = try Mon.parseAsRoot()
         try command.run()
     } catch {
         Arguments.exit(withError: error)

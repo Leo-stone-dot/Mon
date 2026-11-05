@@ -11,6 +11,7 @@ import Silica
 
 extension CodingUserInfoKey {
     static let screenManagerConfiguration = CodingUserInfoKey(rawValue: "screenManagerConfiguration")!
+    static let screenManagerLayoutProvider = CodingUserInfoKey(rawValue: "screenManagerLayoutProvider")!
 }
 
 enum SpaceReflowPolicy {
@@ -94,6 +95,7 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
     private(set) var lastFocusedWindow: Window?
     private let userConfiguration: UserConfiguration
     private let spaceClient: SpaceClient<Window>
+    private let layoutProvider: () -> [Layout<Window>]
 
     private let reflowOperationDispatchQueue = DispatchQueue(
         label: "ScreenManager.reflowOperationQueue",
@@ -133,18 +135,20 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         screen: Screen,
         delegate: Delegate,
         userConfiguration: UserConfiguration,
-        spaceClient: SpaceClient<Window> = .cgs
+        spaceClient: SpaceClient<Window> = .cgs,
+        layoutProvider: @escaping () -> [Layout<Window>] = { LayoutType.availableLayouts() }
     ) {
         self.screen = screen
         self.delegate = delegate
         self.userConfiguration = userConfiguration
         self.spaceClient = spaceClient
+        self.layoutProvider = layoutProvider
 
         layoutNameWindowController = LayoutNameWindowController(windowNibName: "LayoutNameWindow")
 
         super.init()
 
-        layouts = LayoutType.layoutsWithConfiguration(userConfiguration)
+        layouts = layoutProvider()
 
         reflowOperationQueue.underlyingQueue = reflowOperationDispatchQueue
     }
@@ -154,10 +158,17 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         let layoutsBySpaceUUID = try values.decode([String: [[String: Data]]].self, forKey: .layoutsBySpaceUUID)
 
         let configuration = decoder.userInfo[.screenManagerConfiguration] as? UserConfiguration ?? UserConfiguration.shared
+        let injectedLayoutProvider = decoder.userInfo[.screenManagerLayoutProvider] as? () -> [Layout<Window>]
+        let layoutProvider = injectedLayoutProvider ?? { LayoutType.availableLayouts() }
         self.userConfiguration = configuration
         self.spaceClient = .cgs
+        self.layoutProvider = layoutProvider
         let decodedLayouts = try layoutsBySpaceUUID.mapValues { keyedLayouts -> [Layout<Window>] in
-            return try ScreenManager<Delegate>.decodedLayouts(from: keyedLayouts, userConfiguration: configuration)
+            return try ScreenManager<Delegate>.decodedLayouts(
+                from: keyedLayouts,
+                userConfiguration: configuration,
+                availableLayouts: layoutProvider()
+            )
         }
         self.layoutsBySpaceUUID = decodedLayouts
         let encodedIndices = try values.decodeIfPresent(
@@ -188,46 +199,48 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
     }
 
     /**
-     Restores a Space's layout list from its encoded layouts.
+     Restores a Space's state into the current deterministic layout catalog.
 
-     Configured layouts keep their configured order and their saved state. A
-     layout that only this Space uses (for example one selected from the
-     Displays settings) is kept at the end instead of being dropped, so the
-     Space does not silently fall back to a default layout on launch.
+     Built-in layout state is recovered by key. Custom layouts are reconstructed
+     from their currently validated files instead of trusting an encoded path.
 
      - Parameters:
-        - encodedLayouts: A list of encoded layouts to be restored.
-        - userConfiguration: User configuration defining the configured layout list.
+        - encodedLayouts: The previously encoded layout states.
+        - userConfiguration: The configuration used by restored layout instances.
+        - availableLayouts: The current catalog in cycle order.
      */
-    static func decodedLayouts(from encodedLayouts: [[String: Data]], userConfiguration: UserConfiguration) throws -> [Layout<Window>] {
-        let configuredLayouts: [Layout<Window>] = LayoutType.layoutsWithConfiguration(userConfiguration)
-
+    static func decodedLayouts(
+        from encodedLayouts: [[String: Data]],
+        userConfiguration: UserConfiguration,
+        availableLayouts: [Layout<Window>] = LayoutType.availableLayouts()
+    ) throws -> [Layout<Window>] {
+        _ = userConfiguration
+        let availableKeys = Set(availableLayouts.map { $0.layoutKey })
         var decodedByKey: [String: Layout<Window>] = [:]
-        var spaceSpecificLayouts: [Layout<Window>] = []
-        var spaceSpecificKeys: Set<String> = []
 
         for layout in encodedLayouts {
-            guard let keyData = layout["key"], let key = String(data: keyData, encoding: .utf8), let data = layout["data"] else {
+            guard let keyData = layout["key"],
+                  let key = String(data: keyData, encoding: .utf8),
+                  availableKeys.contains(key),
+                  decodedByKey[key] == nil,
+                  let data = layout["data"] else {
+                continue
+            }
+
+            // Custom layouts are rebound to the current validated catalog file.
+            // Their encoded absolute file URL is not trusted during migration.
+            if case .custom = LayoutType<Window>.from(key: key) {
                 continue
             }
 
             do {
-                let decoded = try LayoutType<Window>.decoded(data: data, key: key)
-                if configuredLayouts.contains(where: { $0.layoutKey == decoded.layoutKey }) {
-                    decodedByKey[decoded.layoutKey] = decoded
-                } else if spaceSpecificKeys.insert(decoded.layoutKey).inserted {
-                    spaceSpecificLayouts.append(decoded)
-                }
+                decodedByKey[key] = try LayoutType<Window>.decoded(data: data, key: key)
             } catch {
-                log.error("Failed to decode layout: \(key)")
+                log.error("Failed to decode layout state for \(key); using a fresh layout")
             }
         }
 
-        let orderedConfiguredLayouts = configuredLayouts.map { layout -> Layout<Window> in
-            return decodedByKey[layout.layoutKey] ?? layout
-        }
-
-        return orderedConfiguredLayouts + spaceSpecificLayouts
+        return availableLayouts.map { decodedByKey[$0.layoutKey] ?? $0 }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -303,7 +316,7 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         if let layouts = layoutsBySpaceUUID[key] {
             self.layouts = layouts
         } else {
-            let layouts: [Layout<Window>] = LayoutType.layoutsWithConfiguration(userConfiguration)
+            let layouts = layoutProvider()
             self.layouts = layouts
             layoutsBySpaceUUID[key] = layouts
             if currentLayoutIndexBySpaceUUID[key] == nil {
@@ -485,7 +498,7 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
                 return layoutKey
             }
 
-            return LayoutType<Window>.layoutsWithConfiguration(userConfiguration).first?.layoutKey
+            return layoutProvider().first?.layoutKey
         }
 
         return layouts[index].layoutKey
@@ -502,7 +515,7 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         var layouts = layoutsBySpaceUUID[key] ?? []
 
         if layouts.isEmpty {
-            layouts = LayoutType<Window>.layoutsWithConfiguration(userConfiguration)
+            layouts = layoutProvider()
         }
 
         if !layouts.contains(where: { $0.layoutKey == layoutKey }) {

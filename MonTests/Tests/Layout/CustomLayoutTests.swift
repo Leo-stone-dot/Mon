@@ -13,114 +13,138 @@ import Quick
 
 class CustomLayoutTests: QuickSpec {
     override func spec() {
-        // The expected frames assume no window margins. The tests run inside the app, where the shared configuration reads the machine's own preferences, so the margin settings are turned off for the duration of each test and put back afterwards.
-        let marginKeys = ["window-margins", "window-margin-size", "smart-window-margins"]
-        var savedMargins: [String: Any?] = [:]
-
-        beforeEach {
-            let defaults = UserDefaults.standard
-            for key in marginKeys {
-                savedMargins[key] = defaults.object(forKey: key)
-                defaults.removeObject(forKey: key)
-            }
-        }
-
         afterEach {
             TestScreen.availableScreens = []
-
-            let defaults = UserDefaults.standard
-            for key in marginKeys {
-                if let value = savedMargins[key] ?? nil {
-                    defaults.set(value, forKey: key)
-                } else {
-                    defaults.removeObject(forKey: key)
-                }
-            }
+            TestWindow.focused = nil
         }
 
-        describe("undefined layout") {
-            it("defines a name") {
-                let layout = CustomLayout<TestWindow>(key: "undefined", fileURL: Bundle.layoutFile(key: "undefined")!)
-                expect(layout.layoutName).to(equal("Undefined"))
+        describe("invalid layouts") {
+            it("rejects a missing frame assignment function") {
+                let layout = CustomLayout<TestWindow>(
+                    key: "undefined",
+                    fileURL: Bundle.layoutFile(key: "undefined")!
+                )
+
+                expect(layout.validationError).to(contain("getFrameAssignments"))
             }
 
-            it("defines no frame assignments") {
-                let screen = TestScreen(frame: CGRect(origin: .zero, size: CGSize(width: 2000, height: 1000)))
-                TestScreen.availableScreens = [screen]
+            it("rejects a null frame assignment function") {
+                let layout = CustomLayout<TestWindow>(
+                    key: "null",
+                    fileURL: Bundle.layoutFile(key: "null")!
+                )
 
-                let windows = [
-                    TestWindow(element: nil)!,
-                    TestWindow(element: nil)!,
-                    TestWindow(element: nil)!,
-                    TestWindow(element: nil)!
-                ]
-                let layoutWindows = windows.map {
-                    LayoutWindow<TestWindow>(id: $0.id(), frame: $0.frame(), isFocused: false)
+                expect(layout.validationError).to(contain("getFrameAssignments"))
+            }
+
+            it("rejects a missing layout file") {
+                let layout = CustomLayout<TestWindow>(
+                    key: "missing",
+                    fileURL: FileManager.default.temporaryDirectory
+                        .appendingPathComponent("mon-missing-\(UUID().uuidString).js")
+                )
+
+                expect(layout.validationError).toNot(beNil())
+            }
+
+            it("rejects partial frame assignments atomically") {
+                let fileURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("mon-partial-\(UUID().uuidString).js")
+                try #"function layout(){return{name:"Partial",initialState:{},getFrameAssignments:function(w,s){return {[w[0].id]:{x:s.x,y:s.y,width:s.width,height:s.height}}}}}"#
+                    .write(to: fileURL, atomically: true, encoding: .utf8)
+                defer { try? FileManager.default.removeItem(at: fileURL) }
+                let screen = TestScreen()
+                let windows = [TestWindow(element: nil)!, TestWindow(element: nil)!]
+                let layoutWindows: [LayoutWindow<TestWindow>] = windows.map {
+                    LayoutWindow(id: $0.id(), frame: $0.frame(), isFocused: false)
                 }
                 let windowSet = WindowSet<TestWindow>(
                     windows: layoutWindows,
-                    isWindowWithIDActive: { _ in return true },
-                    isWindowWithIDFloating: { _ in return false },
-                    windowForID: { id in return windows.first { $0.id() == id } }
+                    isWindowWithIDActive: { _ in true },
+                    isWindowWithIDFloating: { _ in false },
+                    windowForID: { id in windows.first { $0.id() == id } }
                 )
-                let layout = CustomLayout<TestWindow>(key: "undefined", fileURL: Bundle.layoutFile(key: "undefined")!)
+                let layout = CustomLayout<TestWindow>(key: "partial", fileURL: fileURL)
 
+                expect(layout.validationError).to(beNil())
                 expect(layout.frameAssignments(windowSet, on: screen)).to(beNil())
             }
-        }
 
-        describe("missing layout file") {
-            it("does not crash and produces no frame assignments") {
-                let screen = TestScreen(frame: CGRect(origin: .zero, size: CGSize(width: 2000, height: 1000)))
-                TestScreen.availableScreens = [screen]
-
-                let windows = [
-                    TestWindow(element: nil)!,
-                    TestWindow(element: nil)!
-                ]
-                let layoutWindows = windows.map {
-                    LayoutWindow<TestWindow>(id: $0.id(), frame: $0.frame(), isFocused: false)
+            it("keeps the last valid state when an updater returns a scalar") {
+                let fileURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("mon-invalid-state-\(UUID().uuidString).js")
+                let script = """
+                function layout() {
+                    return {
+                        name: "Invalid State",
+                        initialState: { valid: true },
+                        updateWithChange: function() { return 1; },
+                        getFrameAssignments: function(windows, screen, state) {
+                            return windows.reduce(function(assignments, window) {
+                                assignments[window.id] = {
+                                    x: screen.x,
+                                    y: screen.y,
+                                    width: state.valid ? screen.width : 0,
+                                    height: screen.height
+                                };
+                                return assignments;
+                            }, {});
+                        }
+                    };
                 }
+                """
+                try script.write(to: fileURL, atomically: true, encoding: .utf8)
+                defer { try? FileManager.default.removeItem(at: fileURL) }
+                let screen = TestScreen()
+                let window = TestWindow(element: nil)!
                 let windowSet = WindowSet<TestWindow>(
-                    windows: layoutWindows,
-                    isWindowWithIDActive: { _ in return true },
-                    isWindowWithIDFloating: { _ in return false },
-                    windowForID: { id in return windows.first { $0.id() == id } }
+                    windows: [LayoutWindow(id: window.id(), frame: window.frame(), isFocused: false)],
+                    isWindowWithIDActive: { _ in true },
+                    isWindowWithIDFloating: { _ in false },
+                    windowForID: { _ in window }
                 )
-                let missingURL = URL(fileURLWithPath: "/tmp/amethyst-missing-custom-layout.js")
-                let layout = CustomLayout<TestWindow>(key: "missing", fileURL: missingURL)
+                let layout = CustomLayout<TestWindow>(key: "invalid-state", fileURL: fileURL)
 
-                expect(layout.frameAssignments(windowSet, on: screen)).to(beNil())
-            }
-        }
+                layout.updateWithChange(.none)
 
-        describe("null layout") {
-            it("defines a name") {
-                let layout = CustomLayout<TestWindow>(key: "null", fileURL: Bundle.layoutFile(key: "null")!)
-                expect(layout.layoutName).to(equal("Null"))
+                expect(layout.frameAssignments(windowSet, on: screen)?.count).to(equal(1))
             }
 
-            it("defines no frame assignments") {
-                let screen = TestScreen(frame: CGRect(origin: .zero, size: CGSize(width: 2000, height: 1000)))
-                TestScreen.availableScreens = [screen]
-
-                let windows = [
-                    TestWindow(element: nil)!,
-                    TestWindow(element: nil)!,
-                    TestWindow(element: nil)!,
-                    TestWindow(element: nil)!
-                ]
-                let layoutWindows = windows.map {
-                    LayoutWindow<TestWindow>(id: $0.id(), frame: $0.frame(), isFocused: false)
+            it("rejects non-finite frame values") {
+                let fileURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("mon-nonfinite-\(UUID().uuidString).js")
+                let script = """
+                function layout() {
+                    return {
+                        name: "Nonfinite",
+                        initialState: {},
+                        getFrameAssignments: function(windows, screen) {
+                            return windows.reduce(function(assignments, window) {
+                                assignments[window.id] = {
+                                    x: NaN,
+                                    y: screen.y,
+                                    width: screen.width,
+                                    height: screen.height
+                                };
+                                return assignments;
+                            }, {});
+                        }
+                    };
                 }
+                """
+                try script.write(to: fileURL, atomically: true, encoding: .utf8)
+                defer { try? FileManager.default.removeItem(at: fileURL) }
+                let screen = TestScreen()
+                let window = TestWindow(element: nil)!
                 let windowSet = WindowSet<TestWindow>(
-                    windows: layoutWindows,
-                    isWindowWithIDActive: { _ in return true },
-                    isWindowWithIDFloating: { _ in return false },
-                    windowForID: { id in return windows.first { $0.id() == id } }
+                    windows: [LayoutWindow(id: window.id(), frame: window.frame(), isFocused: false)],
+                    isWindowWithIDActive: { _ in true },
+                    isWindowWithIDFloating: { _ in false },
+                    windowForID: { _ in window }
                 )
-                let layout = CustomLayout<TestWindow>(key: "null", fileURL: Bundle.layoutFile(key: "null")!)
+                let layout = CustomLayout<TestWindow>(key: "nonfinite", fileURL: fileURL)
 
+                expect(layout.validationError).to(beNil())
                 expect(layout.frameAssignments(windowSet, on: screen)).to(beNil())
             }
         }

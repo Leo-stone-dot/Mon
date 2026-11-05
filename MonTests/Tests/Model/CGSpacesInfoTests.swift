@@ -13,6 +13,7 @@ import Nimble
 import Quick
 import Silica
 import SwiftyJSON
+import XCTest
 
 private final class SpaceClientTestApplication: ApplicationType {
     typealias Window = TestWindow
@@ -159,12 +160,23 @@ class CGSpacesInfoTests: QuickSpec {
                 return window
             }
 
-            it("keeps active windows available for tiling when Space data is unavailable") {
+            it("keeps active windows executable for tiling when Space data is unavailable") {
                 let windows = WindowManager<SpaceClientTestApplication>.Windows(spaceClient: .unavailable)
                 let window = activeWindow()
                 windows.add(window: window, atFront: false)
+                let windowSet = windows.windowSet(forActiveWindowsOnScreen: screen)
+                let layoutWindow = try! XCTUnwrap(windowSet.windows.first)
+                let assignment = FrameAssignment(
+                    frame: CGRect(x: 10, y: 20, width: 300, height: 200),
+                    window: layoutWindow,
+                    screenFrame: screen.adjustedFrame(),
+                    resizeRules: ResizeRules(isMain: true, unconstrainedDimension: .horizontal, scaleFactor: 1)
+                )
+
+                windowSet.perform(frameAssignment: assignment)
 
                 expect(windows.activeWindows(onScreen: screen)).to(equal([window]))
+                expect(window.frame()).to(equal(CGRect(x: 10, y: 20, width: 300, height: 200)))
             }
 
             it("continues to filter a known current Space precisely") {
@@ -414,6 +426,23 @@ class CGSpacesInfoTests: QuickSpec {
                 expect(availability).to(equal(.disabled(.spaceInformationUnavailable)))
                 expect(availability.statusTitle).to(contain("Space commands disabled"))
                 expect(availability.isAvailable).to(beFalse())
+            }
+
+            it("does not report Space inventory failure when no window is focused") {
+                TestWindow.focused = nil
+                let spaceClient = SpaceClient<TestWindow>(
+                    currentFocusedSpace: { nil },
+                    spacesForAllScreens: { _ in [currentSpace, targetSpace] },
+                    currentSpaceForScreen: { _ in currentSpace },
+                    screenForSpace: { _ in screen },
+                    windowSpace: { _ in currentSpace.id }
+                )
+                let coordinator = WindowTransitionCoordinator<SpaceClientTransitionTarget>(spaceClient: spaceClient)
+
+                let availability = coordinator.spaceCommandAvailability()
+
+                expect(availability).to(equal(.available))
+                expect(availability.statusTitle).to(beNil())
             }
 
             it("reports available Space command availability without a status title") {

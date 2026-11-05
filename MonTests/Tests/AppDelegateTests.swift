@@ -37,6 +37,8 @@ class AppDelegateTests: QuickSpec {
                 expect(presentation.state).to(equal(.mixed))
                 expect(presentation.isEnabled).to(beTrue())
                 expect(presentation.guidance).to(contain("Login Items"))
+                expect(presentation.guidance).to(contain("Mon"))
+                expect(presentation.guidance).toNot(contain("Amethyst"))
             }
 
             it("guides the user to add a missing service manually") {
@@ -51,15 +53,39 @@ class AppDelegateTests: QuickSpec {
         }
 
         describe("Displays preferences pane") {
-            it("builds a view and lists the connected displays") { @MainActor in
-                let controller = DisplaysPreferencesViewController()
-                controller.loadViewIfNeeded()
-                controller.viewWillAppear()
+            it("persists new desktop defaults without changing a current desktop") {
+                var persisted: [DisplayDefaults] = []
+                let handler = DisplayDefaultsChangeHandler { defaults in
+                    persisted.append(defaults)
+                }
 
-                expect(controller.view.frame.width).to(beGreaterThan(0))
-                expect(controller.view.frame.height).to(beGreaterThan(0))
+                handler.handle(tilingEnabled: true, layoutKey: "wide")
 
-                controller.viewWillDisappear()
+                expect(persisted).to(equal([DisplayDefaults(tilingEnabled: true, layoutKey: "wide")]))
+            }
+
+            it("keeps existing desktop controls connected to their manager actions") { @MainActor in
+                var selectedLayouts: [String] = []
+                var tilingStates: [Bool] = []
+                let handler = SpaceConfigurationHandler(
+                    setLayout: { selectedLayouts.append($0) },
+                    setTilingEnabled: { tilingStates.append($0) }
+                )
+                let popup = NSPopUpButton()
+                popup.addItem(withTitle: "Wide")
+                popup.lastItem?.representedObject = "wide"
+                let checkbox = NSButton(checkboxWithTitle: "Tiling", target: nil, action: nil)
+                handler.checkbox = checkbox
+
+                popup.selectItem(at: 0)
+                handler.layoutChanged(popup)
+
+                expect(selectedLayouts).to(equal(["wide"]))
+                expect(checkbox.state).to(equal(.on))
+
+                checkbox.state = .off
+                handler.tilingChanged(checkbox)
+                expect(tilingStates).to(equal([false]))
             }
         }
 
@@ -247,11 +273,29 @@ class AppDelegateTests: QuickSpec {
                 expect { try VersionedStateCodec.decode(Fixture.self, from: data) }.to(equal(fixture))
             }
 
-            it("rejects a future envelope version") {
-                let data = Data(#"{"version":2,"state":{"value":"future"}}"#.utf8)
+            it("migrates a version 1 envelope") {
+                let data = Data(#"{"version":1,"state":{"value":"legacy"}}"#.utf8)
 
                 expect { try VersionedStateCodec.decode(Fixture.self, from: data) }
-                    .to(throwError(VersionedStateCodec.DecodeError.unsupportedVersion(2)))
+                    .to(equal(Fixture(value: "legacy")))
+            }
+
+            it("rejects a future envelope before decoding its state") {
+                final class DecodeProbe {
+                    static var count = 0
+                }
+                struct SideEffectState: Codable {
+                    init(from decoder: Decoder) throws {
+                        DecodeProbe.count += 1
+                    }
+                    func encode(to encoder: Encoder) throws {}
+                }
+                DecodeProbe.count = 0
+                let data = Data(#"{"version":3,"state":{}}"#.utf8)
+
+                expect { try VersionedStateCodec.decode(SideEffectState.self, from: data) }
+                    .to(throwError(VersionedStateCodec.DecodeError.unsupportedVersion(3)))
+                expect(DecodeProbe.count).to(equal(0))
             }
 
             it("rejects corrupt state") {
@@ -309,10 +353,10 @@ class AppDelegateTests: QuickSpec {
             }
 
             it("surfaces a future envelope version") {
-                defaults.set(Data(#"{"version":2,"state":{"value":"future"}}"#.utf8), forKey: persistence.stateKey)
+                defaults.set(Data(#"{"version":3,"state":{"value":"future"}}"#.utf8), forKey: persistence.stateKey)
 
                 expect { try persistence.restore(Fixture.self, from: defaults) }
-                    .to(throwError(VersionedStateCodec.DecodeError.unsupportedVersion(2)))
+                    .to(throwError(VersionedStateCodec.DecodeError.unsupportedVersion(3)))
             }
             it("preserves corrupt state and backup for explicit user recovery") {
                 let corruptState = Data("not-json".utf8)

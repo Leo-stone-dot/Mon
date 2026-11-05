@@ -84,7 +84,6 @@ extension UserDefaults: ConfigurationStorage {
 }
 
 enum ConfigurationKey: String {
-    case layouts = "layouts"
     case commandMod = "mod"
     case commandKey = "key"
     case mod1 = "mod1"
@@ -229,7 +228,15 @@ struct ConfigurationFileLoad<Value> {
 }
 
 class UserConfiguration: NSObject {
-    static let shared = UserConfiguration()
+    static let shared: UserConfiguration = {
+        guard CommandLine.arguments.dropFirst().first == "test" else {
+            return UserConfiguration()
+        }
+        let suiteName = "com.totoleo.Mon.tests.\(ProcessInfo.processInfo.processIdentifier)"
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defaults.removePersistentDomain(forName: suiteName)
+        return UserConfiguration(storage: defaults)
+    }()
     private let storage: ConfigurationStorage
     private let accessibilityClient: AccessibilityClient
 
@@ -334,17 +341,30 @@ class UserConfiguration: NSObject {
         }
     }
 
+    static func deprecatedConfigurationDiagnostic(configurationKeys: Set<String>, path: String) -> String? {
+        guard configurationKeys.contains("layouts") else {
+            return nil
+        }
+
+        return "Deprecated 'layouts' key in Mon configuration at \(path); it is ignored. Configure layouts in Displays preferences."
+    }
+
     static func parseYAMLConfiguration(_ string: String, path: String) -> ConfigurationFileLoad<[String: Any]> {
         do {
             let yaml = try Yams.load(yaml: string)
-            guard let dictionary = yaml as? [String: Any] else {
+            guard var dictionary = yaml as? [String: Any] else {
                 return ConfigurationFileLoad(
                     value: nil,
                     path: path,
                     diagnostic: "\(path) does not contain a YAML mapping"
                 )
             }
-            return ConfigurationFileLoad(value: dictionary, path: path, diagnostic: nil)
+            let diagnostic = deprecatedConfigurationDiagnostic(
+                configurationKeys: Set(dictionary.keys),
+                path: path
+            )
+            dictionary.removeValue(forKey: "layouts")
+            return ConfigurationFileLoad(value: dictionary, path: path, diagnostic: diagnostic)
         } catch {
             return ConfigurationFileLoad(
                 value: nil,
@@ -356,7 +376,20 @@ class UserConfiguration: NSObject {
 
     static func parseJSONConfiguration(_ data: Data, path: String) -> ConfigurationFileLoad<JSON> {
         do {
-            return ConfigurationFileLoad(value: try JSON(data: data), path: path, diagnostic: nil)
+            let parsed = try JSON(data: data)
+            guard var dictionary = parsed.dictionaryObject else {
+                return ConfigurationFileLoad(
+                    value: nil,
+                    path: path,
+                    diagnostic: "\(path) does not contain a JSON object"
+                )
+            }
+            let diagnostic = deprecatedConfigurationDiagnostic(
+                configurationKeys: Set(dictionary.keys),
+                path: path
+            )
+            dictionary.removeValue(forKey: "layouts")
+            return ConfigurationFileLoad(value: JSON(dictionary), path: path, diagnostic: diagnostic)
         } catch {
             return ConfigurationFileLoad(
                 value: nil,
@@ -418,7 +451,6 @@ class UserConfiguration: NSObject {
     private func loadConfigurationFile() {
         let xdgConfigPath = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] ?? NSHomeDirectory().appending("/.config")
         let monXDGConfigPath = xdgConfigPath.appending("/mon")
-        let legacyXDGConfigPath = xdgConfigPath.appending("/amethyst")
 
         func configFile(at path: String, directoryName: String) -> String {
             var isDirectory: ObjCBool = false
@@ -431,17 +463,13 @@ class UserConfiguration: NSObject {
         /**
          Priority order for config files:
          1. `.mon.yml` in the home directory
-         2. legacy `.amethyst.yml` in the home directory
-         3. YAML in the XDG config path (`mon`, then legacy `amethyst`)
-         4. `.mon` JSON in the home directory
-         5. legacy `.amethyst` JSON in the home directory
-         6. default JSON from the app bundle
+         2. YAML in the XDG Mon config path
+         3. `.mon` JSON in the home directory
+         4. default JSON from the app bundle
          */
         let yamlCandidates = [
             NSHomeDirectory().appending("/.mon.yml"),
-            NSHomeDirectory().appending("/.amethyst.yml"),
-            configFile(at: monXDGConfigPath, directoryName: "mon.yml"),
-            configFile(at: legacyXDGConfigPath, directoryName: "amethyst.yml")
+            configFile(at: monXDGConfigPath, directoryName: "mon.yml")
         ]
         if let yamlPath = yamlCandidates.first(where: { FileManager.default.fileExists(atPath: $0) }) {
             let load = yamlForConfig(at: yamlPath)
@@ -449,24 +477,24 @@ class UserConfiguration: NSObject {
 
             if configurationYAML == nil {
                 presentConfigurationLoadFailure(load, fallbackMessage: "Could not load \(yamlPath) as YAML")
+            } else if let diagnostic = load.diagnostic {
+                log.warning(diagnostic)
             }
         } else {
-            let jsonCandidates = [
-                NSHomeDirectory().appending("/.mon"),
-                NSHomeDirectory().appending("/.amethyst")
-            ]
-            if let jsonPath = jsonCandidates.first(where: { FileManager.default.fileExists(atPath: $0) }) {
+            let jsonPath = NSHomeDirectory().appending("/.mon")
+            if FileManager.default.fileExists(atPath: jsonPath) {
                 let load = jsonForConfig(at: jsonPath)
                 configurationJSON = load.value
 
                 if configurationJSON == nil {
                     presentConfigurationLoadFailure(load, fallbackMessage: "Could not load \(jsonPath) as JSON")
+                } else if let diagnostic = load.diagnostic {
+                    log.warning(diagnostic)
                 }
             }
         }
 
         let defaultConfigPath = Bundle.main.path(forResource: "default", ofType: "mon")
-            ?? Bundle.main.path(forResource: "default", ofType: "amethyst")
         let defaultLoad = jsonForConfig(at: defaultConfigPath ?? "")
         defaultConfiguration = defaultLoad.value
         if defaultConfiguration == nil {
@@ -583,15 +611,6 @@ class UserConfiguration: NSObject {
 
     func hasCustomConfiguration() -> Bool {
         return configurationYAML != nil || configurationJSON != nil
-    }
-
-    func layoutKeys() -> [String] {
-        let layoutKeys = storage.array(forKey: .layouts) as? [String]
-        return layoutKeys ?? []
-    }
-
-    func setLayoutKeys(_ layoutKeys: [String]) {
-        storage.set(layoutKeys as Any?, forKey: .layouts)
     }
 
     func displayDefaults() -> [String: DisplayDefaults] {

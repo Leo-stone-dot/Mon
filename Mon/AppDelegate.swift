@@ -30,7 +30,7 @@ struct LoginItemPresentation: Equatable {
                 title: "Start Mon on Login (Approve in System Settings…)",
                 state: .mixed,
                 isEnabled: true,
-                guidance: "macOS needs explicit approval. Open System Settings → General → Login Items and enable Amethyst."
+                guidance: "macOS needs explicit approval. Open System Settings → General → Login Items and enable Mon."
             )
         case .notFound:
             self.init(
@@ -66,8 +66,12 @@ private struct StateEnvelope<State: Codable>: Codable {
     let state: State
 }
 
+private struct StateEnvelopeHeader: Decodable {
+    let version: Int
+}
+
 enum VersionedStateCodec {
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     enum DecodeError: Error, Equatable {
         case unsupportedVersion(Int)
@@ -78,13 +82,15 @@ enum VersionedStateCodec {
     }
 
     static func decode<State: Codable>(_ type: State.Type, from data: Data, decoder: JSONDecoder = JSONDecoder()) throws -> State {
-        if let envelope = try? decoder.decode(StateEnvelope<State>.self, from: data) {
-            guard envelope.version == currentVersion else {
-                throw DecodeError.unsupportedVersion(envelope.version)
+        if let header = try? decoder.decode(StateEnvelopeHeader.self, from: data) {
+            guard header.version == 1 || header.version == currentVersion else {
+                throw DecodeError.unsupportedVersion(header.version)
             }
-            return envelope.state
+            return try decoder.decode(StateEnvelope<State>.self, from: data).state
         }
 
+        // An unversioned payload is the pre-envelope state format. It is read
+        // once and saved back as the current envelope on the next state change.
         return try decoder.decode(type, from: data)
     }
 }
@@ -247,6 +253,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let resolvedWindowManager = windowManager ?? WindowManager(userConfiguration: UserConfiguration.shared)
+        resolvedWindowManager.start()
         windowManager = resolvedWindowManager
         configureLayoutStatePersistence(for: resolvedWindowManager)
         hotKeyManager = HotKeyManager(userConfiguration: UserConfiguration.shared)
@@ -461,7 +468,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = "Warning"
-            alert.informativeText = "You have a .amethyst file, which can override in-app preferences. You may encounter unexpected behavior."
+            alert.informativeText = "You have a Mon configuration file, which can override in-app preferences. You may encounter unexpected behavior."
             alert.showsSuppressionButton = true
             alert.runModal()
 

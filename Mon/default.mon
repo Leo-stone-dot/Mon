@@ -1,10 +1,4 @@
 {
-    "layouts": [
-        "tall",
-        "wide",
-        "fullscreen",
-        "column"
-    ],
     "mod1": [
         "option",
         "shift"

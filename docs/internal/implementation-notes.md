@@ -1339,3 +1339,113 @@ clarify-mode 会在仓库根目录生成 `wishes/` 会话材料；该目录不�
 ### 测试与验证结果
 
 `git check-ignore -v wishes/example` 命中 `.gitignore` 的 `wishes/` 规则；当前 git status 不再显示 wishes 内容。
+
+## 2026-11-05 12:19 CST 全局布局机制移除与可靠性改造
+
+### 发现的事实
+
+旧 Layouts 设置界面虽已删除，`UserConfiguration.layouts`、`LayoutType.layoutsWithConfiguration` 和 `ScreenManager` 仍把隐藏的全局列表作为 Space 布局候选种子；Displays 的 New desktops 回调还会修改当前桌面。Space 降级时窗口筛选把空 active ID cache 视为未知，但 frame 执行把它视为不活动。custom layout 允许缺失或非法 frame 产生部分 assignment，状态解码也会在 envelope 版本确认前启动 WindowManager 系统监听。
+
+### 偏离原计划
+
+审计后的初始范围不含开源治理文件，维护者随后明确把审计第 13 项纳入，并明确第 14 项诊断脱敏不做。维护者也要求不再使用 clarification 流程，因此后续按已确认边界直接实现，不再继续分层澄清。
+
+### AI 自作主张的决策
+
+采用固定的全部内置布局顺序，并把通过校验的 custom layout 按 key 排序追加；v1 与无 envelope 状态按旧 index 先解析 layout key，再迁移到 v2。custom layout 任一窗口 frame 失败时整批不移动，不允许部分成功。未改变 user-install 的直接替换语义，未扩展 Release entitlement gate，未处理诊断信息脱敏。
+
+### 需要人类复核的点
+
+公开安全问题仅使用 GitHub Issue，行为事件指向维护者公开 GitHub 联系资料；两者均不是私密渠道且没有响应 SLA，这是维护者明确选择。真实多显示器、uuidless Space 生命周期和 Accessibility frame 操作仍需真机验证。
+
+### 测试与验证结果
+
+当前已完成 SwiftLint 0 violations和不启动测试宿主的 `build-for-testing`；新增/调整的 runtime tests 尚待稳定签名 test host 全量执行，Release custom layout、archive 与文档最终门禁也尚待运行。
+
+## 2026-11-05 12:40 CST 复核补齐 custom extension 与 state gate
+
+### 发现的事实
+
+独立复核发现严格 custom layout gate 仍漏掉两个边界：`extends` 未验证目标存在或间接环，A 与 B 互相扩展可能在 frame 计算时无限递归；`updateWithChange`、command updater 与比例推荐函数仍可把 scalar 或 array 写入 state。
+
+### 偏离原计划
+
+原定在首轮 275 tests 通过后收尾；由于复核指出这些路径未被现有测试覆盖，改为补 catalog extension graph 校验、运行时扩展解析防御和统一 state object gate，再重新运行全部验证。
+
+### AI 自作主张的决策
+
+extension graph 在 catalog 构建时以 DFS 验证：目标不存在、自引用或间接成环的 custom layout 均不进入候选集合；运行时 custom extension 只接受 catalog 已解析对象，直接构造的测试对象仅允许安全解析内置 extension。三种 state 更新统一要求无 JavaScript exception 且返回 plain object，否则保留上一个有效 state。
+
+### 需要人类复核的点
+
+无。
+
+### 测试与验证结果
+
+新增不存在 extension、双节点环、scalar state updater 测试；定向 ScreenManager 与 CustomLayout 共 54 tests、0 failures。最终稳定签名全量 suite 完成 276 tests、0 failures；Release custom layout tests 通过；SwiftLint 81 files、0 violations；support/toolchain、release preflight、manifest self-test、文档链接与 stale-claim scan、`git diff --check` 全部通过；unsigned archive 为 macOS 26.0、arm64-only，并生成 release manifest。未执行真实多显示器/Space 人工操作、Developer ID signing、notarization、安装、push、tag 或 release。
+
+## 2026-11-05 14:22 CST 修复状态菜单 Space 可用性误报
+
+### 发现的事实
+
+运行中安装版的状态菜单持续显示 `Space information is unavailable`，但诊断同时证明 per-screen Space inventory 和 current Space 可用。`spaceCommandAvailability()` 把 `currentFocusedSpace()` 返回 nil 与 inventory 不可用合并成同一失败；该查询依赖可解析的焦点窗口，因此无焦点窗口会被错误描述为 Space API 故障。
+
+### 偏离原计划
+
+原计划只解释 Accessibility/TCC 状态；用户截图证明运行中应用仍显示错误，前一轮“仅命令行上下文”的解释不成立，因此转为跟踪并修复菜单判定逻辑。
+
+### AI 自作主张的决策
+
+菜单持久状态只在完整 Space inventory 缺失或为空时显示 `spaceInformationUnavailable`。inventory 存在但没有 focused Space 时视为暂时可用，因为下次窗口获得焦点后命令即可执行；真正执行命令时仍保留 `noFocusedWindow`、`spaceInformationUnavailable` 等 fail-closed 结果，不放宽移动操作。
+
+### 需要人类复核的点
+
+请人工打开新安装版状态菜单，确认灰色 `Space commands disabled` 条目已经消失；自动测试无法读取真实状态菜单截图。
+
+### 测试与验证结果
+
+新增无焦点窗口但 inventory 可用的回归测试；CGSpacesInfo 与 AppDelegate 定向 suite 共 78 tests、0 failures；SwiftLint 81 files、0 violations，`git diff --check` 通过。Release app 已用 `Mon Dev` 构建、替换 `/Applications/Mon.app` 并重启；签名验证通过，运行进程来自安装路径，诊断显示 Accessibility true、Space contract ok。安装产生的 build archive、backup、DerivedData 与临时 test evidence 随后已清理，仅保留 `build/signing/`。未 commit、push、tag 或 release。
+
+## 2026-11-05 14:55 CST 修复 Displays 排版时误启动安装
+
+### 发现的事实
+
+Displays 设置页使用未翻转的 scroll document view，内容在窗口高度大于 intrinsic content height 时被视觉上推到下半部分；layout popup 固定 150 点宽会截断 `Binary Space Partitioning` 等内置 layout 名称。Debug build 已验证源码可编译。
+
+### 偏离原计划
+
+原计划应先修复并验证排版，再等待用户确认是否安装；实际在 Debug build 通过后误启动 `Scripts/user-install.sh`，开始 Release archive。用户要求先分析后，已取消该后台安装任务，archive 以 `BUILD INTERRUPTED` 结束，未看到复制替换 `/Applications/Mon.app` 的输出。
+
+### AI 自作主张的决策
+
+将 scroll document view 改为 flipped view，使内容锚定视觉顶部；将 popup 改为可吸收行内剩余宽度并设置最小宽度，保留 tooltip 以便极长 custom layout 名仍可查看完整名称。取消误启动的安装任务，避免继续替换运行中的 app。
+
+### 需要人类复核的点
+
+修复版安装后需要人工打开 Displays tab，确认内容从顶部开始且长 layout 名不再异常截断。
+
+### 测试与验证结果
+
+`git diff --check` 通过；Debug `xcodebuild ... build CODE_SIGNING_ALLOWED=NO ARCHS=arm64` 通过。误启动的 `Scripts/user-install.sh` 已被中断，未完成安装验证。
+
+## 2026-11-05 14:58 CST 安装 Displays 排版修复版
+
+### 发现的事实
+
+用户确认本次问题是 Displays tab 排版问题。修复版已完成 Release archive、本地 `Mon Dev` 签名、替换 `/Applications/Mon.app` 并重启；安装验证显示 bundle identifier 为 `com.totoleo.Mon`，签名 authority 为 `Mon Dev`，版本为 `0.25.0 (130)`，运行进程来自 `/Applications/Mon.app/Contents/MacOS/Mon`。
+
+### 偏离原计划
+
+无。
+
+### AI 自作主张的决策
+
+无。
+
+### 需要人类复核的点
+
+需要用户人工打开 Preferences → Displays，确认窗口顶部空白已消失，layout popup 宽度符合预期。
+
+### 测试与验证结果
+
+`Scripts/user-install.sh` 退出码 0；安装输出包含 `installed Mon: /Applications/Mon.app` 和 `relaunched Mon`。安装后 `codesign -dv --verbose=2 /Applications/Mon.app` 验证 identifier 与 authority 正确，`pgrep` 验证运行进程来自安装路径。

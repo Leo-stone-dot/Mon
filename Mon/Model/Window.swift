@@ -77,7 +77,7 @@ protocol WindowType: Equatable {
      */
     func title() -> String?
 
-    /// Whether or not the window should actually be managed by Amethyst.
+    /// Whether or not the window should actually be managed by Mon.
     func shouldBeManaged() -> Bool
 
     /// Whether or not the window should float by default.
@@ -214,7 +214,7 @@ extension AXWindowID: CustomStringConvertible {
     }
 }
 
-/// Conformance of `AXWindow` as an Amethyst window.
+/// Conformance of `AXWindow` as a Mon window.
 extension AXWindow: WindowType {
     typealias Screen = AMScreen
     typealias WindowID = AXWindowID
@@ -278,7 +278,7 @@ extension AXWindow: WindowType {
     }
 
     /**
-     Whether or not the window should actually be managed by Amethyst.
+     Whether or not the window should actually be managed by Mon.
      
      In this case the window must be movable and be a standard window.
      */

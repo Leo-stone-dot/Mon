@@ -1,11 +1,16 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Record a reproducible observation (no support SLA)
 title: ''
 labels: ''
 assignees: ''
 
 ---
+
+> Issues are public observations, not a support queue. There is no response or
+> resolution SLA, and pull requests are not accepted. Do not post secrets,
+> personal information, exploit code, or readily exploitable security details.
+> See `SECURITY.md` for security-reporting limits.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
@@ -24,7 +29,7 @@ A clear and concise description of what you expected to happen.
 **Mon build**
 - Version:
 - Build number:
-- Install source: direct download / Homebrew / local build / other
+- Install source: source checkout / local build / other
 - Artifact architecture from `lipo -archs /Applications/Mon.app/Contents/MacOS/Mon`:
 
 **Mac and OS**
@@ -44,7 +49,7 @@ A clear and concise description of what you expected to happen.
 - Stage Manager: on / off
 - Full-screen Space involved: yes / no
 - Mission Control "Automatically rearrange Spaces": on / off
-- Command involved: layout / focus / throw to Space / throw to screen / login item / update / other
+- Command involved: layout / focus / throw to Space / throw to screen / login item / manual install / other
 
 **Permissions**
 - Accessibility permission: granted / denied / revoked during run

@@ -288,6 +288,7 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
     private var earlyFocusedWindows: Set<Window.WindowID> = []
     private var eventQueue: [PendingEvent] = []
     private var persistentStateChangeHandler: (() -> Void)?
+    private var isStarted = false
 
     private lazy var mouseStateKeeper = MouseStateKeeper(delegate: self)
     private lazy var applicationEventHandler = ApplicationEventHandler(delegate: self)
@@ -314,7 +315,7 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
             screenTopologyClient: screenTopologyClient
         )
         super.init()
-        initialize()
+        start()
     }
 
     init(from decoder: Decoder) throws {
@@ -332,6 +333,15 @@ final class WindowManager<Application: ApplicationType>: NSObject, Codable {
             screenTopologyClient: .system
         )
         super.init()
+    }
+
+    /// Connects decoded state to live AppKit and Accessibility boundaries.
+    /// Decoding itself remains side-effect free so a version can be checked first.
+    func start() {
+        guard !isStarted else {
+            return
+        }
+        isStarted = true
         initialize()
     }
 
@@ -1032,7 +1042,7 @@ extension WindowManager: MouseStateKeeperDelegate {
 
         let windows = activeWindows(on: screen)
 
-        // need to flip mouse coordinate system to fit Amethyst https://stackoverflow.com/a/45289010/2063546
+        // Flip the mouse coordinate system to fit Mon. See https://stackoverflow.com/a/45289010/2063546
         let pointerLocation = Screen.convertFromCocoa(NSPointToCGPoint(NSEvent.mouseLocation))
 
         if let screenManager: ScreenManager<WindowManager<Application>> = focusedScreenManager(), let layout = screenManager.currentLayout {

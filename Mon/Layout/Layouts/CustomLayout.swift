@@ -16,9 +16,12 @@ private struct JSWindow<Window: WindowType> {
 }
 
 private extension JSValue {
-    func toRoundedRect() -> CGRect {
-        let rect = toRect()
-        return CGRect(x: round(rect.origin.x), y: round(rect.origin.y), width: round(rect.width), height: round(rect.height))
+    func finiteNumber(forProperty property: String) -> Double? {
+        guard let value = objectForKeyedSubscript(property), value.isNumber else {
+            return nil
+        }
+        let number = value.toDouble()
+        return number.isFinite ? number : nil
     }
 }
 
@@ -51,6 +54,7 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
 
     private let key: String
     private let fileURL: URL
+    private var capturedException: String?
 
     private lazy var context: JSContext? = {
         guard let context = JSContext() else {
@@ -58,11 +62,13 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
             return nil
         }
 
-        context.exceptionHandler = { (_: JSContext!, value: JSValue!) in
-            let name = value.objectForKeyedSubscript("name").toString() ?? ""
-            let message = value.objectForKeyedSubscript("message").toString() ?? ""
+        context.exceptionHandler = { [weak self] (_: JSContext!, value: JSValue!) in
+            let name = value.objectForKeyedSubscript("name").toString() ?? "JavaScriptError"
+            let message = value.objectForKeyedSubscript("message").toString() ?? "Unknown JavaScript error"
             let stack = value.objectForKeyedSubscript("stack").toString() ?? ""
-            log.error("\(name): \(message)\n\(stack)")
+            let diagnostic = "\(name): \(message)\n\(stack)"
+            self?.capturedException = diagnostic
+            log.error(diagnostic)
         }
 
         context.evaluateScript("var console = { log: function(message) { _consoleLog(message) } }")
@@ -87,9 +93,23 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
             };
         }
 
+        function monIsCallable(value) {
+            return typeof value === "function";
+        }
+
+        function monIsPlainObject(value) {
+            return value !== null && typeof value === "object" && !Array.isArray(value);
+        }
+
+        function monOwnKeys(value) {
+            return Object.keys(value);
+        }
+
         function normalizedLayout() {
             const l = layout();
-            l.getFrameAssignments = sanitizeArguments(l.getFrameAssignments);
+            if (l !== null && typeof l === "object" && monIsCallable(l.getFrameAssignments)) {
+                l.getFrameAssignments = sanitizeArguments(l.getFrameAssignments);
+            }
             return l;
         }
         """)
@@ -97,9 +117,86 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
         return context
     }()
 
+    private func isCallable(_ value: JSValue) -> Bool {
+        return context?.objectForKeyedSubscript("monIsCallable")?.call(withArguments: [value]).toBool() ?? false
+    }
+
+    private func isPlainObject(_ value: JSValue) -> Bool {
+        return context?.objectForKeyedSubscript("monIsPlainObject")?.call(withArguments: [value]).toBool() ?? false
+    }
+
     private lazy var layout: JSValue? = {
-        return self.context?.objectForKeyedSubscript("normalizedLayout")?.call(withArguments: [])
+        capturedException = nil
+        let value = self.context?.objectForKeyedSubscript("normalizedLayout")?.call(withArguments: [])
+        guard capturedException == nil, let value, isPlainObject(value) else {
+            return nil
+        }
+        return value
     }()
+
+    var extendedLayoutKey: String? {
+        guard let value = layout?.objectForKeyedSubscript("extends"), value.isString else {
+            return nil
+        }
+        return value.toString()
+    }
+
+    /// A stable explanation when a custom layout cannot enter the catalog.
+    var validationError: String? {
+        guard context != nil else {
+            return capturedException ?? "The JavaScript context could not be created or the file could not be read"
+        }
+        guard let layout else {
+            return capturedException ?? "layout() must return an object"
+        }
+        let name = layout.objectForKeyedSubscript("name")
+        if let name, !name.isUndefined, !name.isNull {
+            guard name.isString, !(name.toString() ?? "").isEmpty else {
+                return "name must be a non-empty string"
+            }
+        }
+        guard let getAssignments = layout.objectForKeyedSubscript("getFrameAssignments"), isCallable(getAssignments) else {
+            return "getFrameAssignments must be a function"
+        }
+        if let initialState = layout.objectForKeyedSubscript("initialState"),
+           !initialState.isUndefined,
+           !initialState.isNull,
+           !isPlainObject(initialState) {
+            return "initialState must be an object"
+        }
+        if let commands = layout.objectForKeyedSubscript("commands"),
+           !commands.isUndefined,
+           !commands.isNull {
+            guard isPlainObject(commands),
+                  let commandKeys = context?.objectForKeyedSubscript("monOwnKeys")?
+                    .call(withArguments: [commands]).toArray() as? [String] else {
+                return "commands must be an object"
+            }
+            for commandKey in commandKeys {
+                guard let command = commands.objectForKeyedSubscript(commandKey), isPlainObject(command),
+                      let updateState = command.objectForKeyedSubscript("updateState"), isCallable(updateState) else {
+                    return "commands.\(commandKey).updateState must be a function"
+                }
+                if let description = command.objectForKeyedSubscript("description"),
+                   !description.isUndefined,
+                   !description.isNull,
+                   !description.isString {
+                    return "commands.\(commandKey).description must be a string"
+                }
+            }
+        }
+        for hook in ["updateWithChange", "recommendMainPaneRatio"] {
+            if let value = layout.objectForKeyedSubscript(hook), !value.isUndefined, !value.isNull, !isCallable(value) {
+                return "\(hook) must be a function"
+            }
+        }
+        if let extendedKey = layout.objectForKeyedSubscript("extends"), !extendedKey.isUndefined, !extendedKey.isNull {
+            guard extendedKey.isString, let value = extendedKey.toString(), !value.isEmpty, value != key else {
+                return "extends must name another layout"
+            }
+        }
+        return nil
+    }
 
     private lazy var state: JSValue? = {
         return self.layout?.objectForKeyedSubscript("initialState")
@@ -109,17 +206,24 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
         return self.layout?.objectForKeyedSubscript("commands")
     }()
 
-    private lazy var layoutExtension: LayoutExtension<Window> = {
-        guard let extendedLayoutKey = self.layout?.objectForKeyedSubscript("extends"), extendedLayoutKey.isString else {
+    private var resolvedLayoutExtension: LayoutExtension<Window> = .none
+
+    func setResolvedExtension(_ layout: Layout<Window>?) {
+        resolvedLayoutExtension = layout.map(LayoutExtension.layout) ?? .none
+    }
+
+    private func resolveExtensionIfNecessary() -> LayoutExtension<Window> {
+        if case .layout = resolvedLayoutExtension {
+            return resolvedLayoutExtension
+        }
+        guard let target = extendedLayoutKey else {
             return .none
         }
-
-        guard let layout = LayoutType<Window>.layoutForKey(extendedLayoutKey.toString()) else {
-            return .none
+        guard case .custom = LayoutType<Window>.from(key: target) else {
+            return LayoutExtension.layout(LayoutType<Window>.from(key: target).layoutClass.init())
         }
-
-        return .layout(layout)
-    }()
+        return .none
+    }
 
     required init() {
         fatalError("must be constructed with a file")
@@ -145,7 +249,7 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
     }
 
     private func extendedFrameAssignments(_ windowSet: WindowSet<Window>, on screen: Screen) -> [FrameAssignmentOperation<Window>]? {
-        switch layoutExtension {
+        switch resolveExtensionIfNecessary() {
         case .none:
             return nil
         case .layout(let layout):
@@ -153,6 +257,7 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     override func frameAssignments(_ windowSet: WindowSet<Window>, on screen: Screen) -> [FrameAssignmentOperation<Window>]? {
         let windows = windowSet.windows
 
@@ -192,7 +297,10 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
                 "isFocused": jsWindow.window.isFocused
             ]
         }
-        let undefinedValue = JSValue(undefinedIn: context) ?? JSValue(nullIn: context)!
+        guard let undefinedValue = JSValue(undefinedIn: context) else {
+            log.error("CustomLayout: failed to create undefined value for \(key)")
+            return nil
+        }
         let args: [Any] = [
             jsWindowsArg,
             jsScreenFrameArg,
@@ -200,49 +308,115 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
             extendedFrames ?? undefinedValue
         ]
 
-        guard let getAssignments = layout?.objectForKeyedSubscript("getFrameAssignments"), !getAssignments.isNull && !getAssignments.isUndefined else {
+        guard let getAssignments = layout?.objectForKeyedSubscript("getFrameAssignments"), isCallable(getAssignments) else {
+            log.error("CustomLayout \(key): getFrameAssignments is unavailable")
             return nil
         }
 
-        guard let assignments = getAssignments.call(withArguments: args), assignments.isObject else {
+        capturedException = nil
+        guard let assignments = getAssignments.call(withArguments: args),
+              capturedException == nil,
+              isPlainObject(assignments) else {
+            log.error("CustomLayout \(key): getFrameAssignments must return an object")
             return nil
         }
 
-        return windows.compactMap { window -> FrameAssignmentOperation<Window>? in
-            guard let jsWindow = jsWindows[window.id] else {
+        let assignmentKeys = context.objectForKeyedSubscript("monOwnKeys")?
+            .call(withArguments: [assignments])
+            .toArray() as? [String]
+        let expectedKeys = Set(jsWindows.values.map { $0.id })
+        guard assignmentKeys.map(Set.init) == expectedKeys else {
+            log.error("CustomLayout \(key): assignments must contain exactly the current window IDs")
+            return nil
+        }
+
+        var operations: [FrameAssignmentOperation<Window>] = []
+        for window in windows {
+            guard let jsWindow = jsWindows[window.id],
+                  let frame = assignments.objectForKeyedSubscript(jsWindow.id),
+                  !frame.isUndefined,
+                  !frame.isNull,
+                  isPlainObject(frame),
+                  let originX = frame.finiteNumber(forProperty: "x"),
+                  let originY = frame.finiteNumber(forProperty: "y"),
+                  let width = frame.finiteNumber(forProperty: "width"),
+                  let height = frame.finiteNumber(forProperty: "height") else {
+                log.error("CustomLayout \(key): every window must have a finite numeric frame")
                 return nil
             }
 
-            guard let frame = assignments.objectForKeyedSubscript(jsWindow.id) else {
+            let roundedFrame = CGRect(
+                x: round(originX),
+                y: round(originY),
+                width: round(width),
+                height: round(height)
+            )
+            guard roundedFrame.width > 0, roundedFrame.height > 0 else {
+                log.error("CustomLayout \(key): frame dimensions must be greater than zero")
                 return nil
             }
 
             var unconstrainedDimension: UnconstrainedDimension = .horizontal
-            var scaleFactor = screenFrame.width / frame.toRoundedRect().width
-
-            if let dimension = frame.objectForKeyedSubscript("unconstrainedDimension")?.toString() {
-                switch dimension {
+            if let dimension = frame.objectForKeyedSubscript("unconstrainedDimension"),
+               !dimension.isUndefined,
+               !dimension.isNull {
+                guard dimension.isString else {
+                    log.error("CustomLayout \(key): unconstrainedDimension must be a string")
+                    return nil
+                }
+                switch dimension.toString() {
                 case "horizontal":
                     unconstrainedDimension = .horizontal
                 case "vertical":
                     unconstrainedDimension = .vertical
-                    scaleFactor = screenFrame.height / frame.toRoundedRect().height
                 default:
-                    log.warning("Encountered unknown unconstrainedDimension value: \(dimension), defaulting to horizontal")
-                    unconstrainedDimension = .horizontal
+                    log.error("CustomLayout \(key): unconstrainedDimension must be horizontal or vertical")
+                    return nil
                 }
             }
 
-            let isMain = frame.objectForKeyedSubscript("isMain")?.toBool() ?? true
-            let resizeRules = ResizeRules(isMain: isMain, unconstrainedDimension: unconstrainedDimension, scaleFactor: scaleFactor)
+            var isMain = true
+            if let jsIsMain = frame.objectForKeyedSubscript("isMain"), !jsIsMain.isUndefined, !jsIsMain.isNull {
+                guard jsIsMain.isBoolean else {
+                    log.error("CustomLayout \(key): isMain must be a boolean")
+                    return nil
+                }
+                isMain = jsIsMain.toBool()
+            }
+
+            let scaleFactor = unconstrainedDimension == .horizontal
+                ? screenFrame.width / roundedFrame.width
+                : screenFrame.height / roundedFrame.height
+            guard scaleFactor.isFinite, scaleFactor > 0 else {
+                log.error("CustomLayout \(key): scale factor must be finite and positive")
+                return nil
+            }
+
+            let resizeRules = ResizeRules(
+                isMain: isMain,
+                unconstrainedDimension: unconstrainedDimension,
+                scaleFactor: scaleFactor
+            )
             let frameAssignment = FrameAssignment<Window>(
-                frame: frame.toRoundedRect(),
+                frame: roundedFrame,
                 window: jsWindow.window,
                 screenFrame: screenFrame,
                 resizeRules: resizeRules
             )
-            return FrameAssignmentOperation(frameAssignment: frameAssignment, windowSet: windowSet)
+            operations.append(FrameAssignmentOperation(frameAssignment: frameAssignment, windowSet: windowSet))
         }
+        return operations
+    }
+
+    private func acceptedState(from function: JSValue, arguments: [Any], operation: String) -> JSValue? {
+        capturedException = nil
+        guard let updatedState = function.call(withArguments: arguments),
+              capturedException == nil,
+              isPlainObject(updatedState) else {
+            log.error("\(layoutKey) — \(operation): state must be an object")
+            return nil
+        }
+        return updatedState
     }
 
     override func updateWithChange(_ windowChange: Change<Window>) {
@@ -254,11 +428,13 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
             return [jsChange(forChange: windowChange), state]
         }
 
-        guard let updatedState = updateWithChange.call(withArguments: updateWithChangeArgs ?? []), !updatedState.isNull && !updatedState.isUndefined else {
-            log.error("\(layoutKey)): received invalid updated state")
+        guard let updatedState = acceptedState(
+            from: updateWithChange,
+            arguments: updateWithChangeArgs ?? [],
+            operation: "updateWithChange"
+        ) else {
             return
         }
-
         state = updatedState
     }
 
@@ -306,11 +482,13 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
             }
         }
 
-        guard let updatedState = updateState.call(withArguments: updateStateArgs ?? []), !updatedState.isNull && !updatedState.isUndefined else {
-            log.error("\(layoutKey) — \(key): received invalid updated state")
+        guard let updatedState = acceptedState(
+            from: updateState,
+            arguments: updateStateArgs ?? [],
+            operation: key
+        ) else {
             return
         }
-
         state = updatedState
     }
 
@@ -377,11 +555,13 @@ class CustomLayout<Window: WindowType>: StatefulLayout<Window>, PanedLayout {
 
         let recommendMainPaneRatioArgs: [Any]? =  state.flatMap { [rawRatio, $0] }
 
-        guard let updatedState = recommendMainPaneRatio.call(withArguments: recommendMainPaneRatioArgs ?? []), !updatedState.isNull && !updatedState.isUndefined else {
-            log.error("\(layoutKey) — recommendMainPaneRawRatio: received invalid updated state")
+        guard let updatedState = acceptedState(
+            from: recommendMainPaneRatio,
+            arguments: recommendMainPaneRatioArgs ?? [],
+            operation: "recommendMainPaneRatio"
+        ) else {
             return
         }
-
         state = updatedState
     }
 

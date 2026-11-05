@@ -26,19 +26,6 @@ extension FileManager {
                 withIntermediateDirectories: true,
                 attributes: nil
             )
-
-            // Carry over layouts saved under the pre-rename application support directory.
-            let legacyLayoutsDirectory = applicationSupportDirectory
-                .appendingPathComponent("Amethyst", isDirectory: true)
-                .appendingPathComponent("Layouts", isDirectory: true)
-            if let legacyLayouts = try? FileManager.default.contentsOfDirectory(at: legacyLayoutsDirectory, includingPropertiesForKeys: nil) {
-                for layoutFile in legacyLayouts {
-                    try? FileManager.default.copyItem(
-                        at: layoutFile,
-                        to: layoutsDirectory.appendingPathComponent(layoutFile.lastPathComponent)
-                    )
-                }
-            }
         }
 
         return layoutsDirectory
@@ -220,7 +207,7 @@ enum LayoutType<Window: WindowType> {
         }
     }
 
-    static func layoutForKey(_ layoutKey: String) -> Layout<Window>? {
+    static func layoutForKey(_ layoutKey: String, layoutsDirectory: URL? = nil) -> Layout<Window>? {
         let type = LayoutType<Window>.from(key: layoutKey)
 
         guard case .custom = type else {
@@ -228,69 +215,99 @@ enum LayoutType<Window: WindowType> {
         }
 
         do {
-            let layoutFile = try FileManager.default.layoutFile(key: layoutKey)
-
+            let directory = try layoutsDirectory ?? FileManager.default.layoutsDirectory()
+            let layoutFile = directory.appendingPathComponent("\(layoutKey).js")
             guard FileManager.default.fileExists(atPath: layoutFile.path) else {
                 return nil
             }
 
-            return CustomLayout<Window>(key: layoutKey, fileURL: layoutFile)
+            let layout = CustomLayout<Window>(key: layoutKey, fileURL: layoutFile)
+            guard layout.validationError == nil else {
+                log.error("Invalid custom layout \(layoutKey): \(layout.validationError ?? "unknown error")")
+                return nil
+            }
+            return layout
         } catch {
+            log.error("Failed to load custom layout \(layoutKey): \(error)")
             return nil
         }
     }
 
-    static func layoutNameForKey(_ layoutKey: String) -> String? {
+    static func layoutNameForKey(_ layoutKey: String, layoutsDirectory: URL? = nil) -> String? {
         let type = LayoutType<Window>.from(key: layoutKey)
 
         guard case .custom = type else {
             return type.layoutClass.layoutName
         }
 
-        return layoutForKey(layoutKey)?.layoutName
+        return layoutForKey(layoutKey, layoutsDirectory: layoutsDirectory)?.layoutName
     }
 
     static func standardLayoutClasses() -> [Layout<Window>.Type] {
-        return standardLayouts.compactMap { $0.layoutClass }
+        return standardLayouts.map { $0.layoutClass }
     }
 
-    // Returns a list of (key, name) pairs
-    static func availableLayoutStrings() -> [(key: String, name: String)] {
-        var layoutTypes = standardLayouts
-            .compactMap { $0.layoutClass }
-            .map { ($0.layoutKey, $0.layoutName) }
+    /// All layouts available to every desktop. Built-ins keep their declared
+    /// order; valid custom layouts follow in stable key order.
+    static func availableLayouts(layoutsDirectory: URL? = nil) -> [Layout<Window>] {
+        var layouts = standardLayouts.map { $0.layoutClass.init() }
+        let builtInKeys = Set(layouts.map { $0.layoutKey })
 
         do {
-            let layoutsDirectory = try FileManager.default.layoutsDirectory()
-            let customLayoutFiles = try FileManager.default.contentsOfDirectory(
-                at: layoutsDirectory,
+            let directory = try layoutsDirectory ?? FileManager.default.layoutsDirectory()
+            let customKeys = try FileManager.default.contentsOfDirectory(
+                at: directory,
                 includingPropertiesForKeys: nil,
                 options: []
-            ).filter { $0.pathExtension == "js" }
+            )
+            .filter { $0.pathExtension == "js" }
+            .map { $0.deletingPathExtension().lastPathComponent }
+            .filter { !builtInKeys.contains($0) }
+            .sorted()
 
-            let customLayouts = customLayoutFiles
-                .map { $0.deletingPathExtension().lastPathComponent }
-                .map { ($0, layoutNameForKey($0)!) }
-            layoutTypes.append(contentsOf: customLayouts)
-        } catch {
-            log.error("failed to parse custom layouts")
-        }
+            let customLayouts = customKeys.compactMap {
+                layoutForKey($0, layoutsDirectory: directory) as? CustomLayout<Window>
+            }
+            let customByKey = Dictionary(uniqueKeysWithValues: customLayouts.map { ($0.layoutKey, $0) })
+            let allKeys = builtInKeys.union(customByKey.keys)
+            var invalidExtensionKeys: Set<String> = []
 
-        return layoutTypes
-    }
-
-    static func layoutsWithConfiguration(_ userConfiguration: UserConfiguration) -> [Layout<Window>] {
-        let layoutKeys: [String] = userConfiguration.layoutKeys()
-        let layouts = layoutKeys.map { layoutKey -> Layout<Window>? in
-            guard let layout = LayoutType.layoutForKey(layoutKey) else {
-                log.warning("Unrecognized layout key \(layoutKey)")
-                return nil
+            func validateExtensionChain(from key: String, path: [String]) -> Bool {
+                guard let layout = customByKey[key], let target = layout.extendedLayoutKey else {
+                    return true
+                }
+                guard allKeys.contains(target), !path.contains(target) else {
+                    return false
+                }
+                guard customByKey[target] != nil else {
+                    return true
+                }
+                return validateExtensionChain(from: target, path: path + [target])
             }
 
-            return layout
+            for layout in customLayouts where !validateExtensionChain(from: layout.layoutKey, path: [layout.layoutKey]) {
+                invalidExtensionKeys.insert(layout.layoutKey)
+                log.error("Invalid custom layout extension chain for \(layout.layoutKey)")
+            }
+
+            let acceptedCustomLayouts = customLayouts.filter { !invalidExtensionKeys.contains($0.layoutKey) }
+            let acceptedByKey = Dictionary(uniqueKeysWithValues: acceptedCustomLayouts.map { ($0.layoutKey, $0) })
+            let builtInsByKey = Dictionary(uniqueKeysWithValues: layouts.map { ($0.layoutKey, $0) })
+            for layout in acceptedCustomLayouts {
+                if let target = layout.extendedLayoutKey {
+                    layout.setResolvedExtension(builtInsByKey[target] ?? acceptedByKey[target])
+                }
+            }
+            layouts.append(contentsOf: acceptedCustomLayouts)
+        } catch {
+            log.error("Failed to enumerate custom layouts: \(error)")
         }
 
-        return layouts.compactMap { $0 }
+        return layouts
+    }
+
+    static func availableLayoutStrings(layoutsDirectory: URL? = nil) -> [(key: String, name: String)] {
+        return availableLayouts(layoutsDirectory: layoutsDirectory).map { ($0.layoutKey, $0.layoutName) }
     }
 
     static func encoded(layout: Layout<Window>) throws -> Data {

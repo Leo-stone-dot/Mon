@@ -1,5 +1,12 @@
 # macOS 27 Validation Checklist
 
+> **Archived historical checklist.** This template preserves the 2026-11-03
+> adaptation gates and is not the current release contract. Sparkle/appcast and
+> Layouts UI items below are retained only as historical evidence requirements;
+> Mon now has no update feed, and layout configuration is in Preferences →
+> Displays. Use the current support policy and maintainer handoff for any new
+> validation session.
+
 > D4 note (2026-11-03): macOS 27.2 physical validation is deferred by the
 > maintainer. This checklist remains the required evidence template if that
 > validation is resumed; its unchecked 27.2/soak items do not block current
@@ -74,7 +81,7 @@ Evidence:
 - [ ] Legacy 0.24.3 profile upgrade/rollback is deferred by maintainer; it is
       not a current macOS 26.6.2 use/code-release gate.
 - [ ] Layout choices persist independently for each display × Space target and
-      the Layouts menu identifies the target display and Space.
+      Preferences → Displays identifies the target display and desktop.
 - [ ] YAML, JSON, old state, corrupt state, missing JS, and throwing JS fixtures pass.
 - [ ] Corrupt encoded layout state starts with default layouts, preserves the
       original state plus backup, and shows the status-menu recovery message;

@@ -128,7 +128,7 @@ extension Layout {
  A particular kind of layout that organizes windows into a main pane and any number of sub-panes.
  
  - Note:
- The definition is intentionally somewhat layout. This is more intended to demonstrate the expected interface for a fairly common paradigm in Amethyst layouts.
+ The definition is intentionally somewhat loose. This is intended to demonstrate the expected interface for a common paradigm in Mon layouts.
  */
 protocol PanedLayout {
     /**

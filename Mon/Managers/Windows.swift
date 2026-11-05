@@ -240,7 +240,7 @@ extension WindowManager {
                     guard let window = snapshotWindowsByID[id] else {
                         return false
                     }
-                    return window.isActive() && snapshotActiveIDCache.contains(window.cgID())
+                    return window.isActive() && (snapshotActiveIDCache.isEmpty || snapshotActiveIDCache.contains(window.cgID()))
                 },
                 isWindowWithIDFloating: { windowID -> Bool in
                     return snapshotFloatingMap[windowID] ?? false

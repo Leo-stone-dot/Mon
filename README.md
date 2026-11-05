@@ -12,7 +12,8 @@ Mon is a tiling window manager for macOS, forked from
 
 - Targets macOS 26 or later on Apple silicon (`arm64`) only.
 - Configures layout and tiling per display and per desktop in Preferences →
-  Displays.
+  Displays. The former Layouts preference pane and layout-selection submenu are
+  not part of Mon.
 - Has no in-app updater or update feed; install new builds manually.
 - Uses the bundle identifier `com.totoleo.Mon`, so it can coexist with the
   official Amethyst app.
@@ -142,8 +143,10 @@ desktop target; global **Disable Tiling** remains a separate action.
 
 ### Available Layouts
 
-Mon allows you to cycle among several different window layouts.
-Layouts can also be enabled/disabled to control whether they appear in the cycle sequence at all.
+Every desktop can select any built-in layout and any valid custom layout.
+Cycle commands use that same deterministic catalog: built-ins in the order below,
+followed by custom layouts sorted by key. Configure each existing desktop, plus
+defaults for future desktops, in Preferences → Displays.
 
 #### Tall
 
@@ -221,7 +224,10 @@ Custom layouts can be implemented via JavaScript. See [Custom Layouts](docs/cust
 
 ### Configuration File
 
-Mon supports configuration via `~/.mon.yml` (or `~/.config/mon/mon.yml`). Legacy `.amethyst.yml` paths are still read when no Mon config exists. See [Configuration Files](docs/configuration-files.md). A config file overrides the settings defined via the GUI.
+Mon supports configuration via `~/.mon.yml`, the XDG configuration location,
+or the Mon JSON file `~/.mon`. Amethyst configuration paths are not read.
+See [Configuration Files](docs/configuration-files.md). A config file overrides
+the corresponding settings defined via the GUI.
 
 ## Building Mon Locally
 
@@ -245,19 +251,21 @@ packing `build/Mon-macos27-arm64.zip`. There is no in-app updater or feed.
 The `fastlane mac` and `fastlane release` lanes are thin wrappers around `ci`
 and `signed`.
 
-GitHub Releases are source-only unless the `signed` pipeline has produced a
-Developer ID signed and notarized ZIP. After creating and pushing a semantic
-version tag, use the manual **Publish source release** workflow; it reruns CI
-against that tag and calls `Scripts/github-release.sh`. It deliberately never
-uploads an unsigned or locally `Mon Dev`-signed app bundle.
+The manual **Publish source release** workflow creates a source-only GitHub
+Release from an existing semantic-version tag. It reruns CI against that tag and
+calls `Scripts/github-release.sh`; it never uploads an app bundle. A signed and
+notarized ZIP, if a maintainer chooses to produce one, is a separate manual
+distribution and is not attached by that workflow.
 
 ## Project model
 
 Mon is published as a reference implementation, not as a collaborative upstream
 project. Pull requests are not accepted. Fork it and use AI-assisted development
 to adapt the behavior, layouts, compatibility policy, and distribution model to
-your own needs. Issues may be used for observations, but they do not imply a
-support commitment or roadmap.
+your own needs. Issues are an observation channel only: they may be closed
+without action, have no response or resolution SLA, and do not imply support,
+triage, or a roadmap.
+See [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md).
 
 ## Support upstream
 

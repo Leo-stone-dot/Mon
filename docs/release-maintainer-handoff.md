@@ -1,8 +1,11 @@
 # 发布交接：维护者需要做什么
 
-> Status: optional. Mon 没有 Sparkle 更新渠道，本地使用与内部分发不需要先完成本页。对外分发前再准备。
+> Status: optional. Mon 没有 Sparkle 更新渠道，本地使用与 source-only
+> GitHub Release 不需要先完成本页。只有维护者决定另行分发二进制时才执行。
 
-Mon 的对外分发只需要两类凭据，不再需要 appcast 或 EdDSA 密钥。
+GitHub 的 **Publish source release** workflow 只发布 tag 源码归档与说明，
+不会附加应用 bundle。可选的二进制分发是独立人工流程，只需要两类凭据，
+不需要 appcast 或 EdDSA 密钥。
 
 ## 1. Developer ID Application
 
@@ -44,7 +47,7 @@ NOTARYTOOL_PROFILE="Mon-notary" \
 Scripts/release-pipeline.sh signed
 ```
 
-产物为已签名、公证并 staple 的 `build/Mon-macos27-arm64.zip`，以及 `build/release-manifest.json`。Mon 没有自动更新，发布即把 ZIP 交给用户手动安装；保留上一版 ZIP 以便回滚。
+产物为已签名、公证并 staple 的 `build/Mon-macos27-arm64.zip`，以及 `build/release-manifest.json`。Mon 没有自动更新；若决定分发，将 ZIP 通过独立渠道交给用户手动安装，不要把它描述为 source-only GitHub Release 的附件。分发前保留当前与上一版 ZIP 以便回滚；仓库无法为未保存的二进制提供回滚下载。
 
 ## 4. 发布检查
 

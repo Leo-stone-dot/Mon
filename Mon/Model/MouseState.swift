@@ -34,7 +34,7 @@ protocol MouseStateKeeperDelegate: AnyObject {
 /**
  Maintains state information about the mouse for the purposes of mouse-based window operations.
  
- MouseStateKeeper exists because we need a single shared mouse state between all applications being observed. This class captures the state and coordinates any Amethyst reflow actions that are required in response to mouse events.
+ MouseStateKeeper exists because we need a single shared mouse state between all applications being observed. This class captures the state and coordinates any Mon reflow actions that are required in response to mouse events.
  
  Note that some actions may be initiated here and some actions may be completed here; we don't know whether the mouse event stream or the accessibility event stream will fire first.
  

@@ -1,5 +1,5 @@
 //
-//  NSTableView+Amethyst.swift
+//  NSTableView+Mon.swift
 //  Mon
 //
 //  Created by James Zaghini on 15/5/18.

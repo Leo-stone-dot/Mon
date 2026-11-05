@@ -36,174 +36,85 @@ private final class TestDelegate: ScreenManagerDelegate {
 
 class ScreenManagerTests: QuickSpec {
     override func spec() {
-        describe("coding") {
-            it("decodes layouts") {
-                let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                configuration.setLayoutKeys(LayoutType<TestWindow>.standardLayoutClasses().map { $0.layoutKey })
+        describe("layout catalog coding") {
+            it("always exposes every built-in layout in a unique stable order") {
+                let keys = LayoutType<TestWindow>.standardLayoutClasses().map { $0.layoutKey }
 
-                let layouts = LayoutType<TestWindow>.standardLayoutClasses().map { $0.init() }
-                let encoder = JSONEncoder()
-                let encodedLayouts = layouts.map { ["key": $0.layoutKey.data(using: .utf8)!, "data": try! encoder.encode($0)] }
-                let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
-
-                expect(decodedLayouts.count).to(equal(layouts.count))
-                expect(decodedLayouts.count).to(equal(encodedLayouts.count))
-                expect(decodedLayouts.map { $0.layoutKey }).to(equal(layouts.map { $0.layoutKey }))
+                expect(keys.count).to(equal(17))
+                expect(Set(keys).count).to(equal(keys.count))
+                expect(keys.first).to(equal(TallLayout<TestWindow>.layoutKey))
+                expect(keys.last).to(equal(BinarySpacePartitioningLayout<TestWindow>.layoutKey))
             }
 
-            it("replaces incorrectly encoded layouts") {
-                let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                configuration.setLayoutKeys([FullscreenLayout<TestWindow>.layoutKey, TallLayout<TestWindow>.layoutKey])
+            it("appends valid custom layouts in stable key order and rejects invalid ones") {
+                let directory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("mon-layout-catalog-\(UUID().uuidString)", isDirectory: true)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                defer { try? FileManager.default.removeItem(at: directory) }
+                let script = #"function layout(){return{name:"Valid",initialState:{},getFrameAssignments:function(){return {}}}}"#
+                try script.write(to: directory.appendingPathComponent("zeta.js"), atomically: true, encoding: .utf8)
+                try script.write(to: directory.appendingPathComponent("alpha.js"), atomically: true, encoding: .utf8)
+                try #"function layout(){return{name:"Invalid"}}"#
+                    .write(to: directory.appendingPathComponent("broken.js"), atomically: true, encoding: .utf8)
+                let missingExtension = #"function layout(){return{name:"Missing",extends:"absent",initialState:{},getFrameAssignments:function(){return {}}}}"#
+                try missingExtension.write(
+                    to: directory.appendingPathComponent("missing-extension.js"),
+                    atomically: true,
+                    encoding: .utf8
+                )
+                let cycleA = #"function layout(){return{name:"Cycle A",extends:"cycle-b",initialState:{},getFrameAssignments:function(){return {}}}}"#
+                let cycleB = #"function layout(){return{name:"Cycle B",extends:"cycle-a",initialState:{},getFrameAssignments:function(){return {}}}}"#
+                try cycleA.write(to: directory.appendingPathComponent("cycle-a.js"), atomically: true, encoding: .utf8)
+                try cycleB.write(to: directory.appendingPathComponent("cycle-b.js"), atomically: true, encoding: .utf8)
 
-                let encoder = JSONEncoder()
+                let keys = LayoutType<TestWindow>.availableLayouts(layoutsDirectory: directory).map { $0.layoutKey }
+
+                expect(Array(keys.suffix(2))).to(equal(["alpha", "zeta"]))
+                expect(keys).toNot(contain("broken"))
+                expect(keys).toNot(contain("missing-extension"))
+                expect(keys).toNot(contain("cycle-a"))
+                expect(keys).toNot(contain("cycle-b"))
+            }
+
+            it("keeps every available layout in deterministic order while restoring state") {
+                let configuration = UserConfiguration(storage: TestConfigurationStorage())
+                let tall = TallLayout<TestWindow>()
+                tall.increaseMainPaneCount()
                 let encodedLayouts = [
-                    ["key": FullscreenLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(FullscreenLayout<TestWindow>())],
-                    ["key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(["incorrect": "encoding"])]
+                    ["key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! JSONEncoder().encode(tall)]
                 ]
-                let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
+                let available: [Layout<TestWindow>] = [
+                    TallLayout<TestWindow>(),
+                    WideLayout<TestWindow>(),
+                    FullscreenLayout<TestWindow>()
+                ]
 
-                expect {
-                    try JSONDecoder().decode(TallLayout<TestWindow>.self, from: encodedLayouts[1]["data"]!)
-                }.to(throwError())
+                let decoded = try! ScreenManager<TestDelegate>.decodedLayouts(
+                    from: encodedLayouts,
+                    userConfiguration: configuration,
+                    availableLayouts: available
+                )
 
-                expect(decodedLayouts.count).to(equal(2))
-                expect(decodedLayouts.map { $0.layoutKey }).to(equal(configuration.layoutKeys()))
+                expect(decoded.map { $0.layoutKey }).to(equal(["tall", "wide", "fullscreen"]))
+                expect((decoded.first as? TallLayout<TestWindow>)?.mainPaneCount).to(equal(2))
             }
 
-            it("replaces incorrectly keyed layouts") {
+            it("uses a fresh layout when encoded state is invalid") {
                 let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                configuration.setLayoutKeys([FullscreenLayout<TestWindow>.layoutKey, TallLayout<TestWindow>.layoutKey])
+                let encodedLayouts = [[
+                    "key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!,
+                    "data": try! JSONEncoder().encode(["incorrect": "encoding"])
+                ]]
+                let available: [Layout<TestWindow>] = [TallLayout<TestWindow>(), WideLayout<TestWindow>()]
 
-                let encoder = JSONEncoder()
-                let encodedLayouts = [
-                    ["key": FullscreenLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(FullscreenLayout<TestWindow>())],
-                    ["key": FullscreenLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(TallLayout<TestWindow>())]
-                ]
-                let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
+                let decoded = try! ScreenManager<TestDelegate>.decodedLayouts(
+                    from: encodedLayouts,
+                    userConfiguration: configuration,
+                    availableLayouts: available
+                )
 
-                expect(decodedLayouts.count).to(equal(2))
-                expect(decodedLayouts.map { $0.layoutKey }).to(equal(configuration.layoutKeys()))
-            }
-
-            it("keeps a layout that only the Space uses") {
-                let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                configuration.setLayoutKeys([TallLayout<TestWindow>.layoutKey])
-
-                let encoder = JSONEncoder()
-                let encodedLayouts = [
-                    ["key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(TallLayout<TestWindow>())],
-                    ["key": WideLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(WideLayout<TestWindow>())]
-                ]
-                let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
-
-                expect(decodedLayouts.map { $0.layoutKey }).to(equal([TallLayout<TestWindow>.layoutKey, WideLayout<TestWindow>.layoutKey]))
-            }
-
-            context("layout list changes") {
-                it("maintains encoded layouts on insertions") {
-                    let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                    configuration.setLayoutKeys([
-                        FullscreenLayout<TestWindow>.layoutKey,
-                        WideLayout<TestWindow>.layoutKey,
-                        TallLayout<TestWindow>.layoutKey
-                    ])
-
-                    let encoder = JSONEncoder()
-                    let tallLayout = TallLayout<TestWindow>()
-                    tallLayout.increaseMainPaneCount()
-
-                    expect(tallLayout.mainPaneCount).to(equal(2))
-
-                    let encodedLayouts = [
-                        ["key": FullscreenLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(FullscreenLayout<TestWindow>())],
-                        ["key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(tallLayout)]
-                    ]
-                    let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
-
-                    expect(decodedLayouts.count).to(equal(3))
-                    expect(decodedLayouts.map { $0.layoutKey }).to(equal(configuration.layoutKeys()))
-                    expect((decodedLayouts.last as? TallLayout<TestWindow>)?.mainPaneCount).to(equal(2))
-                }
-
-                it("maintains encoded layouts on appends") {
-                    let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                    configuration.setLayoutKeys([
-                        FullscreenLayout<TestWindow>.layoutKey,
-                        TallLayout<TestWindow>.layoutKey,
-                        WideLayout<TestWindow>.layoutKey
-                    ])
-
-                    let encoder = JSONEncoder()
-                    let tallLayout = TallLayout<TestWindow>()
-                    tallLayout.increaseMainPaneCount()
-
-                    expect(tallLayout.mainPaneCount).to(equal(2))
-
-                    let encodedLayouts = [
-                        ["key": FullscreenLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(FullscreenLayout<TestWindow>())],
-                        ["key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(tallLayout)]
-                    ]
-                    let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
-
-                    expect(decodedLayouts.count).to(equal(3))
-                    expect(decodedLayouts.map { $0.layoutKey }).to(equal(configuration.layoutKeys()))
-                    expect((decodedLayouts[1] as? TallLayout<TestWindow>)?.mainPaneCount).to(equal(2))
-                }
-
-                it("maintains encoded layouts on prepends") {
-                    let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                    configuration.setLayoutKeys([
-                        WideLayout<TestWindow>.layoutKey,
-                        FullscreenLayout<TestWindow>.layoutKey,
-                        TallLayout<TestWindow>.layoutKey
-                    ])
-
-                    let encoder = JSONEncoder()
-                    let tallLayout = TallLayout<TestWindow>()
-                    tallLayout.increaseMainPaneCount()
-
-                    expect(tallLayout.mainPaneCount).to(equal(2))
-
-                    let encodedLayouts = [
-                        ["key": FullscreenLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(FullscreenLayout<TestWindow>())],
-                        ["key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(tallLayout)]
-                    ]
-                    let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
-
-                    expect(decodedLayouts.count).to(equal(3))
-                    expect(decodedLayouts.map { $0.layoutKey }).to(equal(configuration.layoutKeys()))
-                    expect((decodedLayouts.last as? TallLayout<TestWindow>)?.mainPaneCount).to(equal(2))
-                }
-
-                it("maintains existing layouts on deletes") {
-                    let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                    configuration.setLayoutKeys([
-                        WideLayout<TestWindow>.layoutKey,
-                        TallLayout<TestWindow>.layoutKey
-                    ])
-
-                    let encoder = JSONEncoder()
-                    let wideLayout = WideLayout<TestWindow>()
-                    let tallLayout = TallLayout<TestWindow>()
-                    wideLayout.increaseMainPaneCount()
-                    tallLayout.increaseMainPaneCount()
-
-                    expect(wideLayout.mainPaneCount).to(equal(2))
-                    expect(tallLayout.mainPaneCount).to(equal(2))
-
-                    let encodedLayouts = [
-                        ["key": WideLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(wideLayout)],
-                        ["key": FullscreenLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(FullscreenLayout<TestWindow>())],
-                        ["key": TallLayout<TestWindow>.layoutKey.data(using: .utf8)!, "data": try! encoder.encode(tallLayout)]
-                    ]
-                    let decodedLayouts = try! ScreenManager<TestDelegate>.decodedLayouts(from: encodedLayouts, userConfiguration: configuration)
-
-                    // A layout that only the Space uses is kept at the end instead of being deleted.
-                    expect(decodedLayouts.count).to(equal(3))
-                    expect(decodedLayouts.map { $0.layoutKey }).to(equal([WideLayout<TestWindow>.layoutKey, TallLayout<TestWindow>.layoutKey, FullscreenLayout<TestWindow>.layoutKey]))
-                    expect((decodedLayouts.first as? WideLayout<TestWindow>)?.mainPaneCount).to(equal(2))
-                    expect((decodedLayouts.dropFirst().first as? TallLayout<TestWindow>)?.mainPaneCount).to(equal(2))
-                }
+                expect(decoded.map { $0.layoutKey }).to(equal(["tall", "wide"]))
+                expect((decoded.first as? TallLayout<TestWindow>)?.mainPaneCount).to(equal(1))
             }
         }
 
@@ -211,15 +122,24 @@ class ScreenManagerTests: QuickSpec {
             let space1 = Space(id: 1, type: CGSSpaceTypeUser, uuid: "space-1")
             let space2 = Space(id: 2, type: CGSSpaceTypeUser, uuid: "space-2")
 
-            func configuration(_ keys: [String]) -> UserConfiguration {
+            func configuration(_ keys: [String] = []) -> UserConfiguration {
+                _ = keys
                 let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                configuration.setLayoutKeys(keys)
                 configuration.tilingEnabled = false
                 return configuration
             }
 
+            func testLayouts() -> [Layout<TestWindow>] {
+                return [TallLayout(), WideLayout(), FullscreenLayout(), ColumnLayout()]
+            }
+
             func manager(_ configuration: UserConfiguration) -> ScreenManager<TestDelegate> {
-                let manager = ScreenManager(screen: TestScreen(), delegate: TestDelegate(), userConfiguration: configuration)
+                let manager = ScreenManager(
+                    screen: TestScreen(),
+                    delegate: TestDelegate(),
+                    userConfiguration: configuration,
+                    layoutProvider: testLayouts
+                )
                 manager.updateSpace(to: space1)
                 return manager
             }
@@ -227,6 +147,7 @@ class ScreenManagerTests: QuickSpec {
             func decoder(_ configuration: UserConfiguration) -> JSONDecoder {
                 let decoder = JSONDecoder()
                 decoder.userInfo[.screenManagerConfiguration] = configuration
+                decoder.userInfo[.screenManagerLayoutProvider] = testLayouts as () -> [Layout<TestWindow>]
                 return decoder
             }
 
@@ -259,81 +180,6 @@ class ScreenManagerTests: QuickSpec {
                 expect(restoredSecond.currentLayout?.layoutKey).to(equal("wide"))
             }
 
-            it("retains the chosen layout when the configured list is reordered or entries change") { @MainActor in
-                let original = manager(configuration(["tall", "wide", "fullscreen"]))
-                original.selectLayout("wide")
-                let data = try JSONEncoder().encode(original)
-
-                for keys in [["wide", "tall", "fullscreen"], ["column", "tall", "wide", "fullscreen"], ["wide", "fullscreen"]] {
-                    let restored = try decoder(configuration(keys)).decode(ScreenManager<TestDelegate>.self, from: data)
-                    restored.updateSpace(to: space1)
-                    expect(restored.currentLayout?.layoutKey).to(equal("wide"))
-                }
-            }
-
-            it("retains a selected layout that is no longer in the configured list") { @MainActor in
-                let original = manager(configuration(["tall", "wide", "fullscreen"]))
-                original.selectLayout("wide")
-                original.updateSpace(to: space2)
-                original.selectLayout("fullscreen")
-                let data = try JSONEncoder().encode(original)
-                let restored = try decoder(configuration(["tall", "fullscreen"])).decode(ScreenManager<TestDelegate>.self, from: data)
-
-                restored.updateSpace(to: space2)
-                expect(restored.currentLayout?.layoutKey).to(equal("fullscreen"))
-                restored.updateSpace(to: space1)
-                expect(restored.currentLayout?.layoutKey).to(equal("wide"))
-                restored.updateSpace(to: space2)
-                expect(restored.currentLayout?.layoutKey).to(equal("fullscreen"))
-            }
-
-            it("restores a custom layout key after its position changes") { @MainActor in
-                // The factory requires an installed file. Use a unique fixture
-                // and remove only that file; never alter a user's custom layout.
-                let customKey = "restoration-test-\(UUID().uuidString)"
-                let fileURL = try FileManager.default.layoutFile(key: customKey)
-                let fixtureURL = try XCTUnwrap(Bundle.layoutFile(key: "uniform-columns"))
-                try Data(contentsOf: fixtureURL).write(to: fileURL, options: .withoutOverwriting)
-                defer { try? FileManager.default.removeItem(at: fileURL) }
-                let original = manager(configuration(["tall", customKey, "wide"]))
-                original.selectLayout(customKey)
-                let data = try JSONEncoder().encode(original)
-                let restored = try decoder(configuration(["wide", "tall", customKey])).decode(ScreenManager<TestDelegate>.self, from: data)
-
-                restored.updateSpace(to: space1)
-                expect(restored.currentLayout is CustomLayout<TestWindow>).to(beTrue())
-                expect(restored.currentLayout?.layoutKey).to(equal(customKey))
-            }
-
-            it("switches between cached Space layout lists of different lengths") { @MainActor in
-                let configuration = configuration(["tall", "wide", "fullscreen"])
-                let original = manager(configuration)
-                original.selectLayout("fullscreen")
-                configuration.setLayoutKeys(["wide"])
-
-                original.updateSpace(to: space2)
-                expect(original.currentLayout?.layoutKey).to(equal("wide"))
-                original.updateSpace(to: space1)
-                expect(original.currentLayout?.layoutKey).to(equal("fullscreen"))
-                original.updateSpace(to: space2)
-                expect(original.currentLayout?.layoutKey).to(equal("wide"))
-            }
-
-            it("handles restoring and cycling when all layouts were removed") { @MainActor in
-                let original = manager(configuration(["tall", "wide"]))
-                original.selectLayout("wide")
-                let data = try JSONEncoder().encode(original)
-                let restored = try decoder(configuration([])).decode(ScreenManager<TestDelegate>.self, from: data)
-
-                restored.updateSpace(to: space1)
-                restored.cycleLayoutForward()
-                restored.cycleLayoutBackward()
-                restored.selectLayout("wide")
-                restored.updateSpace(to: space2)
-                expect(restored.currentLayout).to(beNil())
-                expect(restored.layoutsInfo).to(beEmpty())
-            }
-
             it("reads legacy state that has no saved selection") { @MainActor in
                 let configuration = configuration(["wide", "tall"])
                 let data = try JSONEncoder().encode(manager(configuration))
@@ -343,7 +189,7 @@ class ScreenManagerTests: QuickSpec {
                 let restored = try decoder(configuration).decode(ScreenManager<TestDelegate>.self, from: legacyData)
 
                 restored.updateSpace(to: space1)
-                expect(restored.currentLayout?.layoutKey).to(equal("wide"))
+                expect(restored.currentLayout?.layoutKey).to(equal("tall"))
             }
 
             it("falls back for invalid indices instead of inheriting the previous Space selection") { @MainActor in
@@ -365,23 +211,26 @@ class ScreenManagerTests: QuickSpec {
                 }
             }
 
-            it("uses the display's default layout for a newly tracked Space") { @MainActor in
+            it("uses a display default outside the former global layout list") { @MainActor in
                 let configuration = configuration(["tall", "wide"])
                 let screen = TestScreen(frame: CGRect(origin: .zero, size: CGSize(width: 2000, height: 1000)))
                 configuration.setDisplayDefaults(
-                    DisplayDefaults(tilingEnabled: true, layoutKey: "wide"),
+                    DisplayDefaults(tilingEnabled: true, layoutKey: "row"),
                     forDisplayID: screen.screenID()!
                 )
                 let screenManager = ScreenManager(
                     screen: screen,
                     delegate: TestDelegate(),
                     userConfiguration: configuration,
-                    spaceClient: .unavailable
+                    spaceClient: .unavailable,
+                    layoutProvider: {
+                        [TallLayout<TestWindow>(), RowLayout<TestWindow>(), WideLayout<TestWindow>()]
+                    }
                 )
 
                 screenManager.updateSpace(to: space1)
 
-                expect(screenManager.currentLayout?.layoutKey).to(equal("wide"))
+                expect(screenManager.currentLayout?.layoutKey).to(equal("row"))
                 expect(screenManager.currentSpaceTilingEnabled).to(beTrue())
             }
 
@@ -419,7 +268,9 @@ class ScreenManagerTests: QuickSpec {
                 let data = try JSONEncoder().encode(screenManager)
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
                 let indices = json?["currentLayoutIndexBySpaceUUID"] as? [String: Int]
-                expect(indices?["display:\(screen.screenID()!)"]).to(equal(1))
+                let wideIndex = LayoutType<TestWindow>.standardLayoutClasses()
+                    .firstIndex { $0.layoutKey == WideLayout<TestWindow>.layoutKey }
+                expect(indices?["display:\(screen.screenID()!)"]).to(equal(wideIndex))
             }
 
             it("enables tiling when a layout is selected for a desktop") { @MainActor in
@@ -597,11 +448,13 @@ class ScreenManagerTests: QuickSpec {
 
             func makeScreenManager(layoutKeys: [String]) -> ScreenManager<TestDelegate> {
                 let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                configuration.setLayoutKeys(layoutKeys)
                 let screenManager = ScreenManager<TestDelegate>(
                     screen: screen,
                     delegate: TestDelegate(),
-                    userConfiguration: configuration
+                    userConfiguration: configuration,
+                    layoutProvider: {
+                        layoutKeys.compactMap { LayoutType<TestWindow>.layoutForKey($0) }
+                    }
                 )
                 screenManager.updateSpace(to: Space(id: 1, type: CGSSpaceTypeUser, uuid: "space-1"))
                 return screenManager
@@ -665,16 +518,13 @@ class ScreenManagerTests: QuickSpec {
 
             it("notifies its owner immediately when a Space layout changes") {
                 let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                configuration.setLayoutKeys([
-                    TallLayout<TestWindow>.layoutKey,
-                    WideLayout<TestWindow>.layoutKey
-                ])
                 configuration.tilingEnabled = false
                 let delegate = TestDelegate()
                 let screenManager = ScreenManager(
                     screen: screen,
                     delegate: delegate,
-                    userConfiguration: configuration
+                    userConfiguration: configuration,
+                    layoutProvider: { [TallLayout<TestWindow>(), WideLayout<TestWindow>()] }
                 )
                 screenManager.updateSpace(to: Space(id: 1, type: CGSSpaceTypeUser, uuid: "space-1"))
 

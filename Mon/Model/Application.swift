@@ -167,7 +167,7 @@ class AnyApplication<Application: ApplicationType>: ApplicationType {
     }
 }
 
-/// Conformance of `SIApplication` as an Amethyst application.
+/// Conformance of `SIApplication` as a Mon application.
 extension SIApplication: ApplicationType {
     /// `SIApplication` uses `AXWindow` as its window type.
     typealias Window = AXWindow

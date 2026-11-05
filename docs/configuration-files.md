@@ -1,12 +1,13 @@
 # Configuration Files
 
-Mon picks up a config file at `~/.mon.yml` or `~/.config/mon/mon.yml`, in that order. Legacy `~/.amethyst.yml` and `~/.config/amethyst/amethyst.yml` paths are still read when no Mon config exists. A sample can be found at [.mon.sample.yml](../.mon.sample.yml).
+Mon looks for configuration in this order: `~/.mon.yml`, `$XDG_CONFIG_HOME/mon/mon.yml` (or `~/.config/mon/mon.yml` when `XDG_CONFIG_HOME` is unset), and the Mon JSON file `~/.mon`. If none exists, Mon uses the bundled `default.mon`. Amethyst configuration paths are not read. A sample can be found at [.mon.sample.yml](../.mon.sample.yml).
+
+The former root-level `layouts` key is deprecated and ignored. Choose layouts for existing desktops and defaults for new desktops in Mon's Displays preferences.
 
 ## Configuration Keys
 
 | Key | Description |
 | -- | -- |
-| `layouts` | Ordered list of layouts to use by layout key (default tall, wide, fullscreen, and column). |
 | `mod1` | First mod (default option + shift). |
 | `mod2` | Second mod (default option + shift + control). |
 | `mod3` | Third mod (not used by default). |

@@ -5,7 +5,7 @@
 # Note due to issue 1419 (https://github.com/ianyh/Amethyst/issues/1419) some
 # config values may conflict and not work if they are the same as the default
 # values for Mon. You can see these values on GitHub at
-# https://github.com/ianyh/Amethyst/blob/development/Amethyst/default.amethyst
+# the bundled `Mon/default.mon` file in this repository.
 # If you're experiencing conflicts and the settings are the same as the default,
 # comment out the commands in this file.
 #
@@ -13,26 +13,6 @@
 # In order to register changes restart Mon.
 # If you experience issues pulling in the changes you can also quit Mon and run: `defaults delete com.totoleo.Mon.plist`
 # This removes the current preferences and causes Mon to restart with default preferences and pull configs from this file.
-
-# layouts - Ordered list of layouts to use by layout key (default tall, wide, fullscreen, and column).
-layouts:
-  - tall
-  - fullscreen
-  # - tall-right
-  - wide
-  # - two-pane
-  # - middle-wide
-  # - 3column-left
-  # - middle-wide # The legacy name of "3column-middle"
-  # - 3column-right
-  # - 4column-left
-  # - 4column-right
-  - column
-  # - row
-  # - floating
-  # - widescreen-tall
-  # - widescreen-tall-right
-  # - bsp
 
 # First mod (default option + shift).
 mod1:

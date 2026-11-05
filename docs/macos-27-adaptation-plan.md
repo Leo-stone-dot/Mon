@@ -1,7 +1,13 @@
 # Mon macOS 27 Golden Gate 适配改造计划
 
-> 状态：Proposed  
-> 审计日期：2026-11-03（Asia/Shanghai）  
+> **Archived historical plan.** 本文保存 2026-11-03 的适配过程与当时假设，
+> 不再是当前产品、发布或支持契约。文中的 Layouts UI、Sparkle/appcast、
+> 自动更新、二进制发布和回滚描述均可能已失效；当前行为以
+> [README](../README.md)、[support policy](macos-27-support-policy.md) 和
+> [release maintainer handoff](release-maintainer-handoff.md) 为准。
+>
+> 状态：Archived（原 Proposed）
+> 审计日期：2026-11-03（Asia/Shanghai）
 > 仓库基线：`development@d7b442f`  
 > 目标系统：macOS 27 Golden Gate 27.2  
 > 工具链基线：Xcode 27.2、macOS 27.2 SDK、Swift 6.4 compiler / Swift 5 language mode

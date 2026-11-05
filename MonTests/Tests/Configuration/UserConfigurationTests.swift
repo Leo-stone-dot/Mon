@@ -597,128 +597,91 @@ class UserConfigurationTests: QuickSpec {
         }
 
         describe("load configuration") {
-            it("default configuration does not override existing configuration") {
+            it("default configuration does not override an existing value") {
                 let storage = TestConfigurationStorage()
                 let configuration = UserConfiguration(storage: storage)
-                let existingLayouts = ["wide"]
-                let defaultConfiguration = [
-                    "layouts": [
-                        "tall"
-                    ]
-                ]
+                storage.set(true, forKey: .windowMargins)
+                configuration.defaultConfiguration = JSON(["window-margins": false])
 
-                storage.set(existingLayouts, forKey: .layouts)
-
-                expect(configuration.layoutKeys()).to(equal(existingLayouts))
-                configuration.defaultConfiguration = JSON(defaultConfiguration)
                 configuration.loadConfiguration()
-                expect(configuration.layoutKeys()).to(equal(existingLayouts))
+
+                expect(configuration.windowMargins()).to(beTrue())
             }
 
-            it("local json configuration does override existing configuration") {
+            it("local JSON configuration overrides an existing value") {
                 let storage = TestConfigurationStorage()
                 let configuration = UserConfiguration(storage: storage)
-                let existingLayouts = ["wide"]
-                let localConfiguration = [
-                    "layouts": [
-                        "fullscreen"
-                    ]
-                ]
-                let defaultConfiguration = [
-                    "layouts": [
-                        "tall"
-                    ]
-                ]
+                storage.set(false, forKey: .windowMargins)
+                configuration.configurationJSON = JSON(["window-margins": true])
 
-                storage.set(existingLayouts, forKey: .layouts)
-
-                expect(configuration.layoutKeys()).to(equal(existingLayouts))
-                configuration.configurationYAML = nil
-                configuration.configurationJSON = JSON(localConfiguration)
-                configuration.defaultConfiguration = JSON(defaultConfiguration)
                 configuration.loadConfiguration()
-                expect(configuration.layoutKeys()).to(equal(localConfiguration["layouts"]))
+
+                expect(configuration.windowMargins()).to(beTrue())
             }
 
-            it("local yaml configuration does override existing configuration") {
+            it("local YAML configuration overrides an existing value") {
                 let storage = TestConfigurationStorage()
                 let configuration = UserConfiguration(storage: storage)
-                let existingLayouts = ["wide"]
-                let localConfiguration = [
-                    "layouts": [
-                        "fullscreen"
-                    ]
-                ]
-                let defaultConfiguration = [
-                    "layouts": [
-                        "tall"
-                    ]
-                ]
+                storage.set(false, forKey: .windowMargins)
+                configuration.configurationYAML = ["window-margins": true]
 
-                storage.set(existingLayouts, forKey: .layouts)
-
-                expect(configuration.layoutKeys()).to(equal(existingLayouts))
-                configuration.configurationYAML = localConfiguration
-                configuration.configurationJSON = nil
-                configuration.defaultConfiguration = JSON(defaultConfiguration)
                 configuration.loadConfiguration()
-                expect(configuration.layoutKeys()).to(equal(localConfiguration["layouts"]))
-            }
 
-            it("prefers yaml over json for local configuration") {
-                let configuration = UserConfiguration(storage: TestConfigurationStorage())
-                let yamlConfiguration = [
-                    "layouts": [
-                        "fullscreen"
-                    ]
-                ]
-                let jsonConfiguration = [
-                    "layouts": [
-                        "tall"
-                    ]
-                ]
-                let defaultConfiguration = [
-                    "layouts": [
-                        "wide"
-                    ]
-                ]
-                configuration.configurationYAML = yamlConfiguration
-                configuration.configurationJSON = JSON(jsonConfiguration)
-                configuration.defaultConfiguration = JSON(defaultConfiguration)
-                configuration.loadConfiguration()
-                expect(configuration.layoutKeys()).to(equal(yamlConfiguration["layouts"]))
+                expect(configuration.windowMargins()).to(beTrue())
             }
         }
 
         describe("configuration load diagnostics") {
             it("returns a diagnostic naming the path for malformed YAML") {
-                let load = UserConfiguration.parseYAMLConfiguration("layouts: [", path: "/tmp/broken.amethyst.yml")
+                let load = UserConfiguration.parseYAMLConfiguration("window-margins: [", path: "/tmp/broken.mon.yml")
 
                 expect(load.value).to(beNil())
-                expect(load.diagnostic).to(contain("/tmp/broken.amethyst.yml"))
+                expect(load.diagnostic).to(contain("/tmp/broken.mon.yml"))
                 expect(load.diagnostic).to(contain("YAML"))
             }
 
             it("returns a diagnostic when YAML is not a mapping") {
-                let load = UserConfiguration.parseYAMLConfiguration("- tall\n- wide\n", path: "/tmp/list.amethyst.yml")
+                let load = UserConfiguration.parseYAMLConfiguration("- tall\n- wide\n", path: "/tmp/list.mon.yml")
 
                 expect(load.value).to(beNil())
                 expect(load.diagnostic).to(contain("does not contain a YAML mapping"))
             }
 
             it("parses valid YAML without a diagnostic") {
-                let load = UserConfiguration.parseYAMLConfiguration("layouts:\n  - tall\n", path: "/tmp/valid.amethyst.yml")
+                let load = UserConfiguration.parseYAMLConfiguration("window-margins: true\n", path: "/tmp/valid.mon.yml")
 
-                expect(load.value?["layouts"] as? [String]).to(equal(["tall"]))
+                expect(load.value?["window-margins"] as? Bool).to(beTrue())
                 expect(load.diagnostic).to(beNil())
+            }
+
+            it("warns about and removes deprecated layouts from YAML") {
+                let load = UserConfiguration.parseYAMLConfiguration(
+                    "layouts:\n  - tall\nwindow-margins: true\n",
+                    path: "/tmp/legacy.mon.yml"
+                )
+
+                expect(load.value?["layouts"]).to(beNil())
+                expect(load.value?["window-margins"] as? Bool).to(beTrue())
+                expect(load.diagnostic).to(contain("Deprecated 'layouts' key"))
+                expect(load.diagnostic).to(contain("/tmp/legacy.mon.yml"))
+                expect(load.diagnostic).to(contain("ignored"))
+            }
+
+            it("warns about and removes deprecated layouts from JSON") {
+                let data = Data(#"{"layouts":["tall"],"window-margins":true}"#.utf8)
+                let load = UserConfiguration.parseJSONConfiguration(data, path: "/tmp/legacy.mon")
+
+                expect(load.value?["layouts"].exists()).to(beFalse())
+                expect(load.value?["window-margins"].bool).to(beTrue())
+                expect(load.diagnostic).to(contain("Deprecated 'layouts' key"))
             }
 
             it("returns a diagnostic naming the path for malformed JSON") {
                 let data = Data("{".utf8)
-                let load = UserConfiguration.parseJSONConfiguration(data, path: "/tmp/broken.amethyst")
+                let load = UserConfiguration.parseJSONConfiguration(data, path: "/tmp/broken.mon")
 
                 expect(load.value).to(beNil())
-                expect(load.diagnostic).to(contain("/tmp/broken.amethyst"))
+                expect(load.diagnostic).to(contain("/tmp/broken.mon"))
                 expect(load.diagnostic).to(contain("JSON"))
             }
         }

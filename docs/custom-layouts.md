@@ -10,16 +10,15 @@ At the moment, files must be manually moved to this directory. There is no way t
 
 ## Per-display and per-Space selection
 
-The enabled layout list is global, but the selected layout and its state are
-stored separately for every **display × Space** pair. For example, the same
-physical display can use Equal Row in one desktop and Wide in another, while
-an external display can use Tall at the same time.
+Every desktop can use every built-in layout and each custom layout that passes
+validation. Cycle commands traverse built-ins in a fixed order and then valid
+custom layouts sorted by key. The selected layout and its state are stored
+separately for every **display × Space** pair. For example, the same physical
+display can use Equal Row in one desktop and Wide in another, while an external
+display can use Tall at the same time.
 
-Open the status-menu **Layouts** submenu after focusing a window on the target
-display. Its disabled first line identifies the target display and Space. If
-there is no focused window, the menu uses the display under the mouse cursor.
-A layout selection is persisted immediately; it does not need to wait for
-Mon to quit.
+Open Preferences → Displays and choose the target display and desktop. A layout
+selection is persisted immediately; it does not need to wait for Mon to quit.
 
 ## Defining a Layout
 
@@ -46,7 +45,7 @@ The `updateState` function takes two arguments—`state` and `focusedWindowID`�
 
 #### `extends`
 
-The key for a layout that the custom layout extends. Each call to `getFrameAssignments` will include the frames determined by the extended layout for reference. There are some limitations to this extension—you cannot affect the state of the extended layout, for example—but this is useful for small modifications to existing native layout algorithms.
+The key for a layout that the custom layout extends. The target must be a valid built-in or custom layout, and extension chains must not contain a cycle. Each call to `getFrameAssignments` will include the frames determined by the extended layout for reference. There are some limitations to this extension—you cannot affect the state of the extended layout, for example—but this is useful for small modifications to existing native layout algorithms.
 
 #### `getFrameAssignments`
 
@@ -57,7 +56,12 @@ A function that takes four arguments—`windows`, `screenFrame`, `state`, and `e
 * `state`: the current layout state
 * `extendedFrames`: the frames that are inherited from the extended layout if any is defined
 
-The return should be an object with _new_ frames keyed by the window id.
+This function is required. The return value must be an object with exactly one
+own-property frame for every current window ID and no extra IDs. Each frame must
+provide finite numeric `x`, `y`, `width`, and `height` values; width and height
+must round to values greater than zero. If any assignment is missing or invalid,
+Mon rejects the whole result and leaves every window unchanged rather than moving
+only a subset.
 
 #### `updateWithChange`
 
@@ -182,9 +186,9 @@ function layout() {
 }
 ```
 
-Then enable `Equal Row` in Preferences → Layouts, or add `equal-row` to the
-`layouts` list in `~/.mon.yml`. Restart Mon after adding the file so
-the layout is discovered.
+Restart Mon after adding the file so the layout is discovered, then select
+`Equal Row` for the intended desktop or as a display default in Preferences →
+Displays.
 
 For the built-in Row layout, an alternative is to increase the main pane count
 until it equals the number of windows (`Increase main pane count`, default
