@@ -137,9 +137,9 @@ And defines the following commands, mostly a mapping to xmonad key combinations.
 | `none` | Select widescreen-tall layout |
 | `none` | Select bsp layout |
 
-The status menu also exposes **Disable Tiling for This Display & Space** or
-**Enable Tiling for This Display & Space**. It affects the current display and
-desktop target; global **Disable Tiling** remains a separate action.
+The status menu exposes **Disable Tiling for This Display** or **Enable Tiling
+for This Display**. It affects every desktop on the current display and the
+default for future desktops on that display.
 
 ### Available Layouts
 

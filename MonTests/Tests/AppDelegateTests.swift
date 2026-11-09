@@ -214,27 +214,27 @@ class AppDelegateTests: QuickSpec {
             }
         }
 
-        describe("current Space tiling presentation") {
-            it("hides the action when no current Space is available") {
-                let presentation = CurrentSpaceTilingPresentation(isTilingEnabled: nil)
+        describe("current display tiling presentation") {
+            it("hides the action when no current display is available") {
+                let presentation = CurrentDisplayTilingPresentation(isTilingEnabled: nil)
 
                 expect(presentation.title).to(beEmpty())
                 expect(presentation.isEnabled).to(beFalse())
                 expect(presentation.isVisible).to(beFalse())
             }
 
-            it("offers to disable tiling for the current display and Space") {
-                let presentation = CurrentSpaceTilingPresentation(isTilingEnabled: true)
+            it("offers to disable tiling for the current display") {
+                let presentation = CurrentDisplayTilingPresentation(isTilingEnabled: true)
 
-                expect(presentation.title).to(equal("Disable Tiling for This Display & Space"))
+                expect(presentation.title).to(equal("Disable Tiling for This Display"))
                 expect(presentation.isEnabled).to(beTrue())
                 expect(presentation.isVisible).to(beTrue())
             }
 
-            it("offers to enable tiling for a disabled current display and Space") {
-                let presentation = CurrentSpaceTilingPresentation(isTilingEnabled: false)
+            it("offers to enable tiling for a disabled current display") {
+                let presentation = CurrentDisplayTilingPresentation(isTilingEnabled: false)
 
-                expect(presentation.title).to(equal("Enable Tiling for This Display & Space"))
+                expect(presentation.title).to(equal("Enable Tiling for This Display"))
                 expect(presentation.isEnabled).to(beTrue())
                 expect(presentation.isVisible).to(beTrue())
             }

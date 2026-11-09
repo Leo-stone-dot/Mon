@@ -330,36 +330,45 @@ class ScreenManagerTests: QuickSpec {
                 expect(screenManager.currentLayout?.layoutKey).to(equal("wide"))
             }
 
-            it("keeps tiling enabled state independent for each Space") { @MainActor in
+            it("toggles tiling for every Space on the current display") { @MainActor in
                 let configuration = configuration(["tall", "wide"])
                 let screen = TestScreen()
                 configuration.setDisplayDefaults(
-                    DisplayDefaults(tilingEnabled: true, layoutKey: nil),
+                    DisplayDefaults(tilingEnabled: true, layoutKey: "wide"),
                     forDisplayID: screen.screenID()!
                 )
                 let delegate = TestDelegate()
                 let screenManager = ScreenManager(
                     screen: screen,
                     delegate: delegate,
-                    userConfiguration: configuration
+                    userConfiguration: configuration,
+                    spaceClient: SpaceClient<TestWindow>(
+                        currentFocusedSpace: { space1 },
+                        spacesForAllScreens: { _ in [space1, space2] },
+                        currentSpaceForScreen: { _ in space1 },
+                        spacesForScreen: { _, includeOnlyUserSpaces in
+                            includeOnlyUserSpaces ? [space1, space2] : [space1, space2]
+                        },
+                        screenForSpace: { _ in screen },
+                        windowSpace: { _ in space1.id }
+                    )
                 )
 
                 screenManager.updateSpace(to: space1)
-                expect(screenManager.currentSpaceTilingEnabled).to(beTrue())
-                screenManager.toggleTilingForCurrentSpace()
-                expect(screenManager.currentSpaceTilingEnabled).to(beFalse())
+                expect(screenManager.currentDisplayTilingEnabled).to(beTrue())
+                screenManager.toggleTilingForCurrentDisplay()
 
-                screenManager.updateSpace(to: space2)
-                expect(screenManager.currentSpaceTilingEnabled).to(beTrue())
-
-                screenManager.updateSpace(to: space1)
-                expect(screenManager.currentSpaceTilingEnabled).to(beFalse())
+                expect(screenManager.currentDisplayTilingEnabled).to(beFalse())
+                expect(screenManager.tilingEnabled(for: space1)).to(beFalse())
+                expect(screenManager.tilingEnabled(for: space2)).to(beFalse())
+                expect(configuration.displayDefaults(forDisplayID: screen.screenID()!)?.tilingEnabled).to(beFalse())
+                expect(configuration.displayDefaults(forDisplayID: screen.screenID()!)?.layoutKey).to(equal("wide"))
                 expect(delegate.persistentStateChangeCount).to(equal(1))
 
                 let data = try JSONEncoder().encode(screenManager)
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
                 expect(json?["tilingEnabledBySpaceUUID"] as? [String: Bool])
-                    .to(equal(["space-1": false, "space-2": true]))
+                    .to(equal(["space-1": false, "space-2": false]))
             }
         }
 

@@ -185,6 +185,7 @@ class CGSpacesInfoTests: QuickSpec {
                     currentFocusedSpace: { currentSpace },
                     spacesForAllScreens: { _ in [currentSpace] },
                     currentSpaceForScreen: { _ in currentSpace },
+                    spacesForScreen: { _, _ in [currentSpace] },
                     screenForSpace: { _ in screen },
                     windowSpace: { _ in 2 }
                 )
@@ -434,6 +435,7 @@ class CGSpacesInfoTests: QuickSpec {
                     currentFocusedSpace: { nil },
                     spacesForAllScreens: { _ in [currentSpace, targetSpace] },
                     currentSpaceForScreen: { _ in currentSpace },
+                    spacesForScreen: { _, _ in [currentSpace] },
                     screenForSpace: { _ in screen },
                     windowSpace: { _ in currentSpace.id }
                 )
@@ -450,6 +452,7 @@ class CGSpacesInfoTests: QuickSpec {
                     currentFocusedSpace: { currentSpace },
                     spacesForAllScreens: { _ in [currentSpace, targetSpace] },
                     currentSpaceForScreen: { _ in currentSpace },
+                    spacesForScreen: { _, _ in [currentSpace] },
                     screenForSpace: { _ in screen },
                     windowSpace: { _ in currentSpace.id }
                 )
@@ -466,6 +469,7 @@ class CGSpacesInfoTests: QuickSpec {
                     currentFocusedSpace: { currentSpace },
                     spacesForAllScreens: { _ in [currentSpace, targetSpace] },
                     currentSpaceForScreen: { _ in currentSpace },
+                    spacesForScreen: { _, _ in [currentSpace] },
                     screenForSpace: { _ in screen },
                     windowSpace: { _ in currentSpace.id }
                 )
@@ -489,6 +493,7 @@ class CGSpacesInfoTests: QuickSpec {
                     currentFocusedSpace: { currentSpace },
                     spacesForAllScreens: { _ in [currentSpace, targetSpace] },
                     currentSpaceForScreen: { _ in currentSpace },
+                    spacesForScreen: { _, _ in [currentSpace] },
                     screenForSpace: { _ in screen },
                     windowSpace: { _ in currentSpace.id }
                 )

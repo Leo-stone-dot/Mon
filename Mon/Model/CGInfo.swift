@@ -139,6 +139,7 @@ struct SpaceClient<Window: WindowType> {
     let currentFocusedSpace: () -> Space?
     let spacesForAllScreens: (_ includeOnlyUserSpaces: Bool) -> [Space]?
     let currentSpaceForScreen: (_ screen: Screen) -> Space?
+    let spacesForScreen: (_ screen: Screen, _ includeOnlyUserSpaces: Bool) -> [Space]?
     let screenForSpace: (_ space: Space) -> Screen?
     let windowSpace: (_ window: Window) -> CGSSpaceID?
 }
@@ -155,6 +156,9 @@ extension SpaceClient {
             currentSpaceForScreen: { screen in
                 CGSpacesInfo<Window>.currentSpaceForScreen(screen)
             },
+            spacesForScreen: { screen, includeOnlyUserSpaces in
+                CGSpacesInfo<Window>.spacesForScreen(screen, includeOnlyUserSpaces: includeOnlyUserSpaces)
+            },
             screenForSpace: { space in
                 CGSpacesInfo<Window>.screenForSpace(space: space)
             },
@@ -169,6 +173,7 @@ extension SpaceClient {
             currentFocusedSpace: { nil },
             spacesForAllScreens: { _ in nil },
             currentSpaceForScreen: { _ in nil },
+            spacesForScreen: { _, _ in nil },
             screenForSpace: { _ in nil },
             windowSpace: { _ in nil }
         )

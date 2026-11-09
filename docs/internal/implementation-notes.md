@@ -1449,3 +1449,91 @@ Displays 设置页使用未翻转的 scroll document view，内容在窗口高�
 ### 测试与验证结果
 
 `Scripts/user-install.sh` 退出码 0；安装输出包含 `installed Mon: /Applications/Mon.app` 和 `relaunched Mon`。安装后 `codesign -dv --verbose=2 /Applications/Mon.app` 验证 identifier 与 authority 正确，`pgrep` 验证运行进程来自安装路径。
+
+## 2026-11-09 10:36 CST 状态菜单只保留显示器级 Disable
+
+### 发现的事实
+
+状态菜单同时显示全局 `Disable Tiling` 与 `Disable Tiling for This Display & Space`，两个入口都用于停止自动 tiling，用户认为功能重叠且界面冗余。全局 tiling 仍作为配置和快捷键存在，但状态菜单不需要暴露第二个 disable 入口。
+
+### 偏离原计划
+
+无。
+
+### AI 自作主张的决策
+
+只从状态菜单移除全局 `Disable Tiling` 菜单项和对应 outlet/action，保留 `Disable/Enable Tiling for This Display & Space`。快捷键与配置文件中的全局 tiling 命令暂不删除，以避免破坏已有用户配置。
+
+### 需要人类复核的点
+
+需要用户人工打开状态菜单，确认只剩一个 display/Space 级别的 Disable/Enable Tiling 入口。
+
+### 测试与验证结果
+
+`git diff --check` 通过；SwiftLint 81 files、0 violations；Debug `xcodebuild ... build CODE_SIGNING_ALLOWED=NO ARCHS=arm64` 通过。尚未安装到 `/Applications/Mon.app`，因此运行中状态菜单仍需安装后人工确认。
+
+## 2026-11-09 10:42 CST 安装单一 Disable 菜单修复版
+
+### 发现的事实
+
+修复版已完成 Release archive、本地 `Mon Dev` 签名、替换 `/Applications/Mon.app` 并重启。安装验证显示 bundle identifier 为 `com.totoleo.Mon`，签名 authority 为 `Mon Dev`，版本为 `0.25.0 (130)`，运行进程来自 `/Applications/Mon.app/Contents/MacOS/Mon`。
+
+### 偏离原计划
+
+无。
+
+### AI 自作主张的决策
+
+无。
+
+### 需要人类复核的点
+
+需要用户人工打开状态菜单，确认全局 `Disable Tiling` 已消失，只保留 display 级别的 Disable/Enable Tiling 入口。
+
+### 测试与验证结果
+
+`Scripts/user-install.sh` 退出码 0；安装输出包含 `installed Mon: /Applications/Mon.app` 和 `relaunched Mon`。安装后 `codesign -dv --verbose=2 /Applications/Mon.app` 验证 identifier 与 authority 正确，`pgrep` 验证运行进程来自安装路径。
+
+## 2026-11-09 11:40 CST Disable 菜单改为显示器粒度
+
+### 发现的事实
+
+前一轮只去掉了状态菜单里的全局 `Disable Tiling`，但保留下来的菜单项仍写作 `Disable/Enable Tiling for This Display & Space`，实际语义仍是 Display × Space，而用户要求的是 display 级 disable。
+
+### 偏离原计划
+
+原计划只做去重；收到用户复核后确认粒度错误，改为实现显示器级状态菜单动作。
+
+### AI 自作主张的决策
+
+状态菜单文案改为 `Disable/Enable Tiling for This Display`。动作对当前显示器的所有用户 Space 写入相同 tiling 状态，并同步该显示器 future desktop 默认 tiling；全局快捷键和配置项仍保留，避免破坏已有配置。
+
+### 需要人类复核的点
+
+需要用户人工打开状态菜单，确认文案为 display 级；并在同一显示器不同桌面之间切换，确认禁用状态对该显示器生效。
+
+### 测试与验证结果
+
+`git diff --check` 通过；SwiftLint 81 files、0 violations；Debug `xcodebuild ... build CODE_SIGNING_ALLOWED=NO ARCHS=arm64` 通过；AppDelegate、ScreenManager、CGSpacesInfo 定向 suite 共 106 tests、0 failures。
+
+## 2026-11-09 11:49 CST 安装显示器级 Disable 修复版
+
+### 发现的事实
+
+修复版已完成 Release archive、本地 `Mon Dev` 签名、替换 `/Applications/Mon.app` 并重启。安装验证显示 bundle identifier 为 `com.totoleo.Mon`，签名 authority 为 `Mon Dev`，版本为 `0.25.0 (130)`，运行进程来自 `/Applications/Mon.app/Contents/MacOS/Mon`。
+
+### 偏离原计划
+
+无。
+
+### AI 自作主张的决策
+
+无。
+
+### 需要人类复核的点
+
+需要用户人工打开状态菜单，确认菜单项是 `Disable/Enable Tiling for This Display`；需要在同一显示器不同桌面之间切换，确认禁用状态对整个显示器生效。
+
+### 测试与验证结果
+
+`Scripts/user-install.sh` 退出码 0；安装输出包含 `installed Mon: /Applications/Mon.app` 和 `relaunched Mon`。安装后 `codesign -dv --verbose=2 /Applications/Mon.app` 验证 identifier 与 authority 正确，`pgrep` 验证运行进程来自安装路径。

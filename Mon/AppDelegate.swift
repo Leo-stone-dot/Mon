@@ -166,7 +166,7 @@ enum LayoutStateRestorePresentation {
     static let failureTitle = "Saved layout state could not be restored; using default layouts"
 }
 
-struct CurrentSpaceTilingPresentation: Equatable {
+struct CurrentDisplayTilingPresentation: Equatable {
     let title: String
     let isEnabled: Bool
     let isVisible: Bool
@@ -180,11 +180,11 @@ struct CurrentSpaceTilingPresentation: Equatable {
         }
 
         if isTilingEnabled {
-            title = "Disable Tiling for This Display & Space"
+            title = "Disable Tiling for This Display"
             isEnabled = true
             isVisible = true
         } else {
-            title = "Enable Tiling for This Display & Space"
+            title = "Enable Tiling for This Display"
             isEnabled = true
             isVisible = true
         }
@@ -215,8 +215,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @IBOutlet var statusItemMenu: NSMenu?
     @IBOutlet var versionMenuItem: NSMenuItem?
     @IBOutlet var startAtLoginMenuItem: NSMenuItem?
-    @IBOutlet var toggleGlobalTilingMenuItem: NSMenuItem?
-    @IBOutlet var toggleCurrentSpaceTilingMenuItem: NSMenuItem?
+    @IBOutlet var toggleCurrentDisplayTilingMenuItem: NSMenuItem?
 
     private var isFirstLaunch = true
     private var layoutStateRestoreFailed = false
@@ -277,10 +276,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.isVisible = !hideMenuBarIcon
 
         versionMenuItem?.title = "Version \(shortVersion) (\(version))"
-        toggleGlobalTilingMenuItem?.title = "Disable"
 
         refreshStartAtLoginMenuItem()
-        refreshCurrentSpaceTilingMenuItem()
+        refreshCurrentDisplayTilingMenuItem()
 
         // Set up status item menu delegate to refresh layouts when main menu is opened
         statusItemMenu?.delegate = self
@@ -366,14 +364,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @IBAction func toggleGlobalTiling(_ sender: AnyObject) {
-        UserConfiguration.shared.tilingEnabled = !UserConfiguration.shared.tilingEnabled
-        windowManager?.markAllScreensForReflow()
-    }
-
-    @IBAction func toggleCurrentSpaceTiling(_ sender: AnyObject) {
-        screenManagerForMenuAction()?.toggleTilingForCurrentSpace()
-        refreshCurrentSpaceTilingMenuItem()
+    @IBAction func toggleCurrentDisplayTiling(_ sender: AnyObject) {
+        screenManagerForMenuAction()?.toggleTilingForCurrentDisplay()
+        refreshCurrentDisplayTilingMenuItem()
     }
 
     @IBAction func resetLayouts(_ sender: AnyObject) {
@@ -423,13 +416,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menuItem.toolTip = presentation.guidance
     }
 
-    private func refreshCurrentSpaceTilingMenuItem() {
-        guard let menuItem = toggleCurrentSpaceTilingMenuItem else {
+    private func refreshCurrentDisplayTilingMenuItem() {
+        guard let menuItem = toggleCurrentDisplayTilingMenuItem else {
             return
         }
 
-        let presentation = CurrentSpaceTilingPresentation(
-            isTilingEnabled: screenManagerForMenuAction()?.currentSpaceTilingEnabled
+        let presentation = CurrentDisplayTilingPresentation(
+            isTilingEnabled: screenManagerForMenuAction()?.currentDisplayTilingEnabled
         )
         menuItem.isHidden = !presentation.isVisible
         guard presentation.isVisible else {
@@ -540,7 +533,7 @@ extension AppDelegate: NSMenuDelegate {
         // Refresh layouts menu when main status item menu is about to open
         if menu == statusItemMenu {
             updateRuntimeStatusItems()
-            refreshCurrentSpaceTilingMenuItem()
+            refreshCurrentDisplayTilingMenuItem()
             refreshStartAtLoginMenuItem()
         }
     }
@@ -551,10 +544,8 @@ extension AppDelegate: UserConfigurationDelegate {
         var statusItemImage: NSImage?
         if UserConfiguration.shared.tilingEnabled == true {
             statusItemImage = NSImage(named: "icon-statusitem")
-            toggleGlobalTilingMenuItem?.title = "Disable Tiling"
         } else {
             statusItemImage = NSImage(named: "icon-statusitem-disabled")
-            toggleGlobalTilingMenuItem?.title = "Enable Tiling"
         }
         statusItemImage?.isTemplate = true
         statusItem?.button?.image = statusItemImage

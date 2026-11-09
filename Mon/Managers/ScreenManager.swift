@@ -483,6 +483,22 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         return tilingEnabledBySpaceUUID[stateKey(for: space)] ?? true
     }
 
+    var currentDisplayTilingEnabled: Bool? {
+        guard screen != nil else {
+            return nil
+        }
+
+        let states = userSpacesForCurrentDisplay().map { tilingEnabled(for: $0) }
+        if !states.isEmpty {
+            return states.contains(true)
+        }
+
+        guard let space = space else {
+            return displayDefaults?.tilingEnabled
+        }
+        return tilingEnabledBySpaceUUID[stateKey(for: space)] ?? defaultTilingEnabled()
+    }
+
     /// The layout key currently applied to the tracked Space.
     var currentLayoutKey: String? {
         return currentLayout?.layoutKey
@@ -556,25 +572,42 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         delegate?.screenManagerPersistentStateDidChange(self)
     }
 
-    func toggleTilingForCurrentSpace() {
-        guard let space = space, space.isUserSpace else {
+    func toggleTilingForCurrentDisplay() {
+        guard let enabled = currentDisplayTilingEnabled else {
             return
         }
 
-        let key = stateKey(for: space)
-        tilingEnabledBySpaceUUID[key] = !(tilingEnabledBySpaceUUID[key] ?? true)
+        setTilingEnabledForCurrentDisplay(!enabled)
+    }
+
+    func setTilingEnabledForCurrentDisplay(_ enabled: Bool) {
+        let userSpaces = userSpacesForCurrentDisplay()
+        if userSpaces.isEmpty, let space = space {
+            tilingEnabledBySpaceUUID[stateKey(for: space)] = enabled
+        } else {
+            for space in userSpaces {
+                tilingEnabledBySpaceUUID[stateKey(for: space)] = enabled
+            }
+        }
+
+        if let displayID = screen?.screenID() {
+            let defaults = displayDefaults
+            userConfiguration.setDisplayDefaults(
+                DisplayDefaults(tilingEnabled: enabled, layoutKey: defaults?.layoutKey),
+                forDisplayID: displayID
+            )
+        }
+
         delegate?.screenManagerPersistentStateDidChange(self)
         setNeedsReflow()
     }
 
-    func setTilingEnabledForCurrentSpace(_ enabled: Bool) {
-        guard let space = space else {
-            return
+    private func userSpacesForCurrentDisplay() -> [Space] {
+        guard let screen = screen else {
+            return []
         }
 
-        tilingEnabledBySpaceUUID[stateKey(for: space)] = enabled
-        delegate?.screenManagerPersistentStateDidChange(self)
-        setNeedsReflow()
+        return spaceClient.spacesForScreen(screen, true) ?? []
     }
 
     /// Applies a display's configured defaults to the tracked Space.

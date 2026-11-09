@@ -17,7 +17,7 @@
 | active window fallback | active window fallback 是筛选规则，在桌面标识不可用时按显示器、窗口活动状态和浮动状态选择可平铺窗口。 | 筛选规则 | 窗口集合 | 按桌面过滤、按显示器过滤 | S23 |
 | screen topology client | screen topology client 是系统边界适配器，提供可用显示器、独立桌面开关和显示器描述。 | 系统边界适配器 | 显示器拓扑查询 | 显示器列表、独立桌面开关、描述可用或不可用 | S29 |
 | Space command availability | Space command availability 是状态值，表示 Space 相关命令当前是否可执行。 | 状态值 | 可执行性 | `available`、`disabled` 加失败原因 | S3 |
-| Space tiling action | Space tiling action 是状态菜单动作，切换一个显示器和 Space 组合的布局管理状态。 | 菜单动作 | 目标 tiling 状态 | Space 不可用、禁用 tiling、启用 tiling | S33 |
+| display tiling action | display tiling action 是状态菜单动作，切换一个显示器的布局管理状态。 | 菜单动作 | 目标 tiling 状态 | 显示器不可用、禁用 tiling、启用 tiling | S33, S41 |
 | per-space layout index isolation | per-space layout index isolation 是行为，表示每个 Space state key 保存并恢复独立的布局索引。 | 行为 | 隔离性 | 每个 Space state key 一个索引、切换 Space 恢复对应索引 | S17, S36 |
 | layout index persistence | layout index persistence 是按 Space state key 保存当前布局索引的状态。 | 状态 | 布局索引 | 0 到布局数量减一 | S15, S36 |
 | 布局选择恢复 | 布局选择恢复是状态读取过程，按存档中的 layout key 在 Space 的布局列表中定位选择。 | 状态读取过程 | 身份对应关系 | 对应条目、所选条目缺失时取首项、空列表时无选择 | S19, S38 |
@@ -116,7 +116,7 @@
 - S30: `Mon/Model/CGInfo.swift` defines `EventPostingClient`; Space drag, mouse-follows-focus, AX window focus, and screen focus reuse it; CGSpacesInfo tests inject its closures.
 - S31: `Scripts/verify-toolchain-locks.sh` verifies Mintfile, Gemfile.lock, Package.resolved, bootstrap behavior, and the absence of an Xcode formatting phase.
 - S32: `docs/macos-27-implementation-status.md` maps adaptation work packages to current source/script evidence and outstanding physical or maintainer evidence.
-- S33: `AppDelegate` presents the Space tiling action; `ScreenManager` persists layout and tiling state immediately; README and support documentation describe the behavior.
+- S33: `AppDelegate` presents the display tiling action; `ScreenManager` persists layout and tiling state immediately; README and support documentation describe the behavior.
 - S34: `DebugInfo.separateSpacesAreEnabled()` initializes `NSApplication.shared` before reading `NSScreen.screensHaveSeparateSpaces`; `AppDelegateTests` verifies the order through injected closures.
 - S35: `Scripts/ci-archive.sh` produces the arm64 Release archive; historical local packages were re-signed without production release credentials.
 - S36: `Mon/Model/Space.swift` defines `isFullscreen` and `hasStableIdentifier`; `Mon/Model/CGInfo.swift` parses `fs_wid`; `Mon/Managers/ScreenManager.swift` keys state by `Space state key` and seeds new Spaces from `DisplayDefaults`; `Mon/Preferences/UserConfiguration.swift` persists `display-defaults`; `Mon/Preferences/DisplaysPreferencesViewController.swift` presents the per-display defaults and Space list.

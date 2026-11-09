@@ -137,11 +137,11 @@ Use Preferences → Displays to choose the intended display and desktop. Layout
 selections are saved immediately. Mon has no Layouts preference pane or
 layout-selection submenu.
 
-To disable tiling only for the target display and Space, choose **Disable
-Tiling for This Display & Space**. Other displays and Spaces continue using
-their own tiling settings; choose **Enable Tiling for This Display & Space**
-to restore this target. This differs from global **Disable Tiling**, which
-affects all windows.
+To disable tiling for the target display, choose **Disable Tiling for This
+Display**. Other displays continue using their own tiling settings; choose
+**Enable Tiling for This Display** to restore every desktop on that display and
+the default for future desktops on that display. The status menu intentionally
+does not expose a second global Disable Tiling action.
 
 ## Start at Login
 

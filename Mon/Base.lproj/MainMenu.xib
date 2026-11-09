@@ -20,16 +20,10 @@
                     <modifierMask key="keyEquivalentModifierMask"/>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="uP9-ch-b7n"/>
-                <menuItem title="Disable Tiling" id="rjJ-w4-5Ht">
+                <menuItem title="Disable Tiling for This Display" id="current-display-tiling-menu-item">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="toggleGlobalTiling:" target="494" id="3aM-9U-hWx"/>
-                    </connections>
-                </menuItem>
-                <menuItem title="Disable Tiling for This Display &amp; Space" id="current-space-tiling-menu-item">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="toggleCurrentSpaceTiling:" target="494" id="current-space-tiling-action"/>
+                        <action selector="toggleCurrentDisplayTiling:" target="494" id="current-display-tiling-action"/>
                     </connections>
                 </menuItem>
                 <menuItem title="Start Mon on Login" id="549">
@@ -71,8 +65,7 @@
                 <outlet property="preferencesWindowController" destination="0fi-bi-huz" id="dfn-JC-QBQ"/>
                 <outlet property="startAtLoginMenuItem" destination="549" id="551"/>
                 <outlet property="statusItemMenu" destination="536" id="547"/>
-                <outlet property="toggleGlobalTilingMenuItem" destination="rjJ-w4-5Ht" id="4Dq-e8-R1M"/>
-                <outlet property="toggleCurrentSpaceTilingMenuItem" destination="current-space-tiling-menu-item" id="current-space-tiling-outlet"/>
+                <outlet property="toggleCurrentDisplayTilingMenuItem" destination="current-display-tiling-menu-item" id="current-display-tiling-outlet"/>
                 <outlet property="versionMenuItem" destination="bNZ-Ry-Q4Q" id="jXC-pY-N2a"/>
             </connections>
         </customObject>
