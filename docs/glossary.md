@@ -67,6 +67,8 @@
 | public distribution build | public distribution build 是使用 Developer ID 并完成 notarization 与 staple 的分发产物。 | 软件包 | 公共信任 | Developer ID 签名、公证、staple、ZIP | S39 |
 | source-only GitHub Release | source-only GitHub Release 是只发布 Git tag 源码归档与说明的 GitHub Release。 | 发布记录 | 二进制附件 | 源码归档、无应用 bundle | S40 |
 | development signing identity | development signing identity 是本地代码签名身份。 | 签名身份 | 签名标识 | `Amethyst Dev`、`Mon Dev`、ad-hoc | S10, S39 |
+| runtime app identity | runtime app identity 是代码身份，由安装路径、bundle identifier 和 designated requirement 共同确定。 | 代码身份 | 授权匹配 | 稳定安装版、临时构建、ad-hoc 构建 | S44 |
+| LaunchServices registration | LaunchServices registration 是 macOS 对应用 bundle 路径与元数据的注册记录。 | 系统注册记录 | 应用发现 | 已注册路径、注销路径、残留路径 | S44 |
 | app bundle | app bundle 是 macOS 应用目录，包含 `Contents/Info.plist` 与可执行文件。 | 文件系统对象 | 目录结构 | 含 `Contents/Info.plist`、含可执行文件 | S18 |
 
 ## 独立 fork 治理
@@ -127,3 +129,4 @@
 - S41: `Mon/Managers/LayoutType.swift` defines the deterministic catalog; `Mon/Layout/Layouts/CustomLayout.swift` defines load-time and per-reflow validation; `CONTRIBUTING.md` defines the independent fork, AI-assisted development, pull-request, and issue-observation model.
 - S42: `SECURITY.md` defines the public-only security observation route and disclosure limits.
 - S43: `.github/ISSUE_TEMPLATE/*.md` states the public observation, no-SLA, and no-pull-request expectations at issue creation time.
+- S44: `docs/macos-27-support.md` defines the single-runtime-identity rule for Accessibility/TCC validation and the LaunchServices cleanup command.

@@ -233,16 +233,6 @@ enum LayoutType<Window: WindowType> {
         }
     }
 
-    static func layoutNameForKey(_ layoutKey: String, layoutsDirectory: URL? = nil) -> String? {
-        let type = LayoutType<Window>.from(key: layoutKey)
-
-        guard case .custom = type else {
-            return type.layoutClass.layoutName
-        }
-
-        return layoutForKey(layoutKey, layoutsDirectory: layoutsDirectory)?.layoutName
-    }
-
     static func standardLayoutClasses() -> [Layout<Window>.Type] {
         return standardLayouts.map { $0.layoutClass }
     }

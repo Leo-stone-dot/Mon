@@ -83,6 +83,34 @@ It builds tests without launching them, signs the Debug test host with
 `Amethyst Dev`, then uses `test-without-building`. The normal CI script remains
 for a dedicated self-hosted runner carrying the `ci` label, not a daily-use Mac.
 
+### Prevent repeated Accessibility prompts
+
+Use a single runtime app identity during local validation:
+
+1. Run only `/Applications/Mon.app` installed by `Scripts/user-install.sh`.
+2. Require `Identifier=com.totoleo.Mon` and `Authority=Mon Dev` before asking for
+   Accessibility access.
+3. Do not open temporary `Mon.app` bundles from DerivedData, `/tmp`,
+   `/private/tmp`, Release custom-layout tests, or archive intermediates.
+4. Delete temporary `Mon.app` bundles before finishing the task, and unregister
+   each path:
+
+   ```bash
+   /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -u /path/to/Mon.app
+   ```
+
+5. Verify the installed runtime identity after installation:
+
+   ```bash
+   pgrep -lf '/Applications/Mon.app/Contents/MacOS/Mon'
+   codesign -dv --verbose=2 /Applications/Mon.app 2>&1 | grep -E 'Identifier=|Authority='
+   codesign -dr - /Applications/Mon.app
+   ```
+
+6. Do not run `tccutil reset Accessibility com.totoleo.Mon` as routine cleanup.
+   Use it only for a deliberate clean validation run or when the installed app is
+   not trusted and the user accepts one more authorization prompt.
+
 ## Space command degradation
 
 Space-dependent commands may be disabled when private Space APIs or event

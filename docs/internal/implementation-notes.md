@@ -1537,3 +1537,25 @@ Displays 设置页使用未翻转的 scroll document view，内容在窗口高�
 ### 测试与验证结果
 
 `Scripts/user-install.sh` 退出码 0；安装输出包含 `installed Mon: /Applications/Mon.app` 和 `relaunched Mon`。安装后 `codesign -dv --verbose=2 /Applications/Mon.app` 验证 identifier 与 authority 正确，`pgrep` 验证运行进程来自安装路径。
+
+## 2026-11-09 13:45 CST 清理 TCC 授权混淆来源
+
+### 发现的事实
+
+用户反馈 Mon 又开始频繁要求 Accessibility 授权。检查发现当前运行版 `/Applications/Mon.app` 是 `com.totoleo.Mon` 且由 `Mon Dev` 稳定签名，`AXIsProcessTrusted()` 返回 true；但 LaunchServices 仍注册了多条本轮和前序验证产生的临时 `Mon.app` 路径，包含 `/private/tmp/.../Debug/Mon.app`、workspace `build/.../Debug/Mon.app`、Release custom layout 临时 app 以及 Trash 中的 `Mon.app`。这些 app 使用不同 identifier 或签名，可能导致系统把 Mon 视为不同 code identity 并反复要求授权。
+
+### 偏离原计划
+
+原计划仅准备 GitHub push；用户反馈运行时授权反复弹出后，停止 push 准备，优先清理本机运行环境中由验证流程造成的 TCC/LaunchServices 混淆来源。
+
+### AI 自作主张的决策
+
+删除本轮创建的临时 Debug/test build 目录，使用 `lsregister -u` 注销已知临时 Mon app 路径，并重建 user LaunchServices 数据库。未执行 `tccutil reset Accessibility com.totoleo.Mon`，因为当前安装版已经 trusted，重置会强制用户重新授权一次。
+
+### 需要人类复核的点
+
+需要用户继续使用当前 `/Applications/Mon.app`，确认是否还会频繁弹出 Accessibility 授权。若仍复现，应再检查系统隐私列表中是否残留多个 Mon 条目，并在必要时由用户确认后执行一次 TCC reset。
+
+### 测试与验证结果
+
+清理后 LaunchServices 中只剩 `/Applications/Mon.app` 的 Mon 路径；当前运行进程来自 `/Applications/Mon.app/Contents/MacOS/Mon`；签名为 `Identifier=com.totoleo.Mon`、`Authority=Mon Dev`、designated requirement 绑定 `Mon Dev` 证书；`AXIsProcessTrusted()` 返回 true。

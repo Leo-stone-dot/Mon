@@ -231,7 +231,7 @@ class ScreenManagerTests: QuickSpec {
                 screenManager.updateSpace(to: space1)
 
                 expect(screenManager.currentLayout?.layoutKey).to(equal("row"))
-                expect(screenManager.currentSpaceTilingEnabled).to(beTrue())
+                expect(screenManager.tilingEnabled(for: space1)).to(beTrue())
             }
 
             it("tracks a Space without a UUID with a display-scoped key") { @MainActor in
@@ -250,7 +250,7 @@ class ScreenManagerTests: QuickSpec {
                 screenManager.updateSpace(to: uuidlessSpace)
 
                 expect(screenManager.currentLayout?.layoutKey).to(equal("wide"))
-                expect(screenManager.currentSpaceTilingEnabled).to(beFalse())
+                expect(screenManager.tilingEnabled(for: space1)).to(beFalse())
             }
 
             it("persists a selected layout for a Space without a UUID under its display key") { @MainActor in
@@ -282,11 +282,11 @@ class ScreenManagerTests: QuickSpec {
                 )
 
                 screenManager.updateSpace(to: space1)
-                expect(screenManager.currentSpaceTilingEnabled).to(beFalse())
+                expect(screenManager.tilingEnabled(for: space1)).to(beFalse())
 
                 screenManager.setLayout("wide", for: space1)
 
-                expect(screenManager.currentSpaceTilingEnabled).to(beTrue())
+                expect(screenManager.tilingEnabled(for: space1)).to(beTrue())
                 expect(screenManager.currentLayout?.layoutKey).to(equal("wide"))
             }
 
@@ -306,7 +306,7 @@ class ScreenManagerTests: QuickSpec {
                 screenManager.updateSpace(to: space1)
 
                 expect(screenManager.currentLayout?.layoutKey).to(equal("wide"))
-                expect(screenManager.currentSpaceTilingEnabled).to(beTrue())
+                expect(screenManager.tilingEnabled(for: space1)).to(beTrue())
             }
 
             it("keeps the tracked desktop when a fullscreen Space becomes current") { @MainActor in
@@ -346,9 +346,7 @@ class ScreenManagerTests: QuickSpec {
                         currentFocusedSpace: { space1 },
                         spacesForAllScreens: { _ in [space1, space2] },
                         currentSpaceForScreen: { _ in space1 },
-                        spacesForScreen: { _, includeOnlyUserSpaces in
-                            includeOnlyUserSpaces ? [space1, space2] : [space1, space2]
-                        },
+                        spacesForScreen: { _, _ in [space1, space2] },
                         screenForSpace: { _ in screen },
                         windowSpace: { _ in space1.id }
                     )
@@ -369,6 +367,41 @@ class ScreenManagerTests: QuickSpec {
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
                 expect(json?["tilingEnabledBySpaceUUID"] as? [String: Bool])
                     .to(equal(["space-1": false, "space-2": false]))
+            }
+
+            it("enables tiling for every Space on the current display") { @MainActor in
+                let configuration = configuration(["tall", "wide"])
+                let screen = TestScreen()
+                configuration.setDisplayDefaults(
+                    DisplayDefaults(tilingEnabled: false, layoutKey: "wide"),
+                    forDisplayID: screen.screenID()!
+                )
+                let screenManager = ScreenManager(
+                    screen: screen,
+                    delegate: TestDelegate(),
+                    userConfiguration: configuration,
+                    spaceClient: SpaceClient<TestWindow>(
+                        currentFocusedSpace: { space1 },
+                        spacesForAllScreens: { _ in [space1, space2] },
+                        currentSpaceForScreen: { _ in space1 },
+                        spacesForScreen: { _, _ in [space1, space2] },
+                        screenForSpace: { _ in screen },
+                        windowSpace: { _ in space1.id }
+                    )
+                )
+
+                screenManager.updateSpace(to: space1)
+                screenManager.setTilingEnabled(false, for: space1)
+                screenManager.setTilingEnabled(false, for: space2)
+
+                expect(screenManager.currentDisplayTilingEnabled).to(beFalse())
+                screenManager.toggleTilingForCurrentDisplay()
+
+                expect(screenManager.currentDisplayTilingEnabled).to(beTrue())
+                expect(screenManager.tilingEnabled(for: space1)).to(beTrue())
+                expect(screenManager.tilingEnabled(for: space2)).to(beTrue())
+                expect(configuration.displayDefaults(forDisplayID: screen.screenID()!)?.tilingEnabled).to(beTrue())
+                expect(configuration.displayDefaults(forDisplayID: screen.screenID()!)?.layoutKey).to(equal("wide"))
             }
         }
 

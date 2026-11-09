@@ -436,9 +436,6 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
             return
         }
 
-        // TODO: fix mff
-//        let mouseFollowsFocus = userConfiguration.mouseFollowsFocus()
-
         let completeOperation = BlockOperation()
 
         // The complete operation should execute the completion delegate call
@@ -449,12 +446,6 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
 
             DispatchQueue.main.async {
                 self?.delegate?.onReflowCompletion()
-                // TODO: fix mff
-//                if mouseFollowsFocus {
-//                    if case .windowSwap(let window, _) = event {
-//                        window.focus()
-//                    }
-//                }
             }
         }
 
@@ -476,13 +467,6 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         setNeedsReflow()
     }
 
-    var currentSpaceTilingEnabled: Bool? {
-        guard let space = space else {
-            return nil
-        }
-        return tilingEnabledBySpaceUUID[stateKey(for: space)] ?? true
-    }
-
     var currentDisplayTilingEnabled: Bool? {
         guard screen != nil else {
             return nil
@@ -497,11 +481,6 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
             return displayDefaults?.tilingEnabled
         }
         return tilingEnabledBySpaceUUID[stateKey(for: space)] ?? defaultTilingEnabled()
-    }
-
-    /// The layout key currently applied to the tracked Space.
-    var currentLayoutKey: String? {
-        return currentLayout?.layoutKey
     }
 
     /// The layout key configured for any Space of this display.
@@ -608,21 +587,6 @@ final class ScreenManager<Delegate: ScreenManagerDelegate>: NSObject, Codable {
         }
 
         return spaceClient.spacesForScreen(screen, true) ?? []
-    }
-
-    /// Applies a display's configured defaults to the tracked Space.
-    func applyDisplayDefaults(_ defaults: DisplayDefaults) {
-        guard let space = space else {
-            return
-        }
-
-        if let layoutKey = defaults.layoutKey {
-            selectLayout(layoutKey)
-        }
-
-        tilingEnabledBySpaceUUID[stateKey(for: space)] = defaults.tilingEnabled
-        delegate?.screenManagerPersistentStateDidChange(self)
-        setNeedsReflow()
     }
 
     private var tilingEnabledForCurrentTarget: Bool {

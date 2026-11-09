@@ -236,14 +236,6 @@ struct CGSpacesInfo<Window: WindowType> {
         return spaces
     }
 
-    static func spacesForFocusedScreen() -> [Space]? {
-        guard let focusedWindow = Window.currentlyFocused(), let screen = focusedWindow.screen() else {
-            return nil
-        }
-
-        return spacesForScreen(screen)
-    }
-
     static func currentSpaceForScreen(_ screen: Screen) -> Space? {
         guard let screenDescriptions = Screen.screenDescriptions(), let screenID = screen.screenID() else {
             return nil
