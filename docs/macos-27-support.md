@@ -3,7 +3,9 @@
 This guide covers support tasks for the macOS 27 Apple silicon release line.
 For the release contract and approval gates, see
 [macOS 27 Support Policy](macos-27-support-policy.md) and
-[macOS 27 Validation Checklist](macos-27-validation-checklist.md).
+[macOS 27 Validation Checklist](macos-27-validation-checklist.md). For private
+Space API risks and required degradation behavior, see
+[Private macOS API Boundary](private-apis.md).
 
 ## Supported installs
 
@@ -115,18 +117,8 @@ Use a single runtime app identity during local validation:
 
 Space-dependent commands may be disabled when private Space APIs or event
 posting are unavailable. Core tiling, focus, and screen movement should
-continue.
-
-When Space discovery is unavailable, Mon selects visible active windows
-on the current display without applying a Space-ID filter. It retains the
-currently selected layout until Space discovery recovers. Once it can identify
-the current desktop again, it resumes the layout stored for that desktop.
-
-On macOS 26, private CGS reports user desktop Spaces with type `4`; older
-releases used type `0`. Mon treats type `4` and legacy type `0` with a
-non-empty UUID as user Spaces. If a layout selection does not restore after an
-OS update, check `--debug-info` for the reported Space types and contract
-result; normal tiling should still remain available during this degradation.
+continue. The full private API boundary is documented in
+[Private macOS API Boundary](private-apis.md).
 
 Logs may include reasons such as:
 

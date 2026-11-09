@@ -2,8 +2,9 @@
 
 > Archived historical snapshot (2026-11-03). This records adaptation work at
 > that date; it is not the current product contract or a release approval.
-> Current user and distribution behavior is documented in README and the
-> support policy. In particular, Mon now has no update feed.
+> Current user and distribution behavior is documented in README, the support
+> policy, and [Private macOS API Boundary](private-apis.md). In particular, Mon
+> now has no update feed.
 
 ## Status vocabulary
 

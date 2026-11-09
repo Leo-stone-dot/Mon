@@ -17,6 +17,9 @@ Mon is a tiling window manager for macOS, forked from
 - Has no in-app updater or update feed; install new builds manually.
 - Uses the bundle identifier `com.totoleo.Mon`, so it can coexist with the
   official Amethyst app.
+- Uses macOS private Space APIs for display and desktop awareness; Space-aware
+  features may degrade after macOS updates. See
+  [Private macOS API Boundary](docs/private-apis.md).
 
 ## Getting Mon
 

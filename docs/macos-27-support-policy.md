@@ -33,7 +33,8 @@ traceable evidence. In particular:
   system version of 26.0 in the target, built Info.plist, and README.
 
 Evidence is recorded with
-[the versioned validation checklist](macos-27-validation-checklist.md).
+[the versioned validation checklist](macos-27-validation-checklist.md). Private
+Space API usage is governed by [Private macOS API Boundary](private-apis.md).
 
 ## Decision record
 

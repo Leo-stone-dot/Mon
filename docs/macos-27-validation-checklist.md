@@ -66,8 +66,12 @@ Evidence:
 - [ ] AppKit, SwiftUI, Electron/Chromium, and Catalyst fixtures pass.
 - [ ] Single display, hot-plug, negative origin, vertical offset, and scaled Retina pass.
 - [ ] Separate Spaces on/off, full screen, and Stage Manager on/off pass.
-- [ ] Missing CGS symbol/key/type disables only Space-dependent features while
-      visible active windows on the current display continue to tile.
+- [ ] Private Space API behavior satisfies
+      [Private macOS API Boundary](private-apis.md): missing symbol/key/type
+      disables only Space-dependent features while visible active windows on the
+      current display continue to tile.
+- [ ] Space inventory, current Space, fullscreen Space detection, and uuidless
+      desktop fallback match the installed macOS runtime.
 - [ ] Space switch/throw timeout, cancellation, and termination always post mouse-up.
 - [ ] Stress run has zero stuck drag, crash, and hang.
 

@@ -17,6 +17,8 @@
 | active window fallback | active window fallback 是筛选规则，在桌面标识不可用时按显示器、窗口活动状态和浮动状态选择可平铺窗口。 | 筛选规则 | 窗口集合 | 按桌面过滤、按显示器过滤 | S23 |
 | screen topology client | screen topology client 是系统边界适配器，提供可用显示器、独立桌面开关和显示器描述。 | 系统边界适配器 | 显示器拓扑查询 | 显示器列表、独立桌面开关、描述可用或不可用 | S29 |
 | Space command availability | Space command availability 是状态值，表示 Space 相关命令当前是否可执行。 | 状态值 | 可执行性 | `available`、`disabled` 加失败原因 | S3 |
+| private API boundary | private API boundary 是系统接口边界，包含 Mon 使用的非公开 Space API 与运行时字典字段。 | 系统接口边界 | 稳定性 | 可用、不可用、未知 shape | S45 |
+| Space-dependent feature | Space-dependent feature 是功能，依赖 private API boundary 提供 Space inventory、current Space 或 window-Space 关系。 | 功能 | 私有接口依赖 | 可用、降级、禁用 | S45 |
 | display tiling action | display tiling action 是状态菜单动作，切换一个显示器的布局管理状态。 | 菜单动作 | 目标 tiling 状态 | 显示器不可用、禁用 tiling、启用 tiling | S33, S41 |
 | per-space layout index isolation | per-space layout index isolation 是行为，表示每个 Space state key 保存并恢复独立的布局索引。 | 行为 | 隔离性 | 每个 Space state key 一个索引、切换 Space 恢复对应索引 | S17, S36 |
 | layout index persistence | layout index persistence 是按 Space state key 保存当前布局索引的状态。 | 状态 | 布局索引 | 0 到布局数量减一 | S15, S36 |
@@ -130,3 +132,4 @@
 - S42: `SECURITY.md` defines the public-only security observation route and disclosure limits.
 - S43: `.github/ISSUE_TEMPLATE/*.md` states the public observation, no-SLA, and no-pull-request expectations at issue creation time.
 - S44: `docs/macos-27-support.md` defines the single-runtime-identity rule for Accessibility/TCC validation and the LaunchServices cleanup command.
+- S45: `docs/private-apis.md` defines the private macOS Space API boundary, dependent features, degradation behavior, and validation requirements.

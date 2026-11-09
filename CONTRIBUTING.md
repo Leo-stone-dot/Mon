@@ -30,6 +30,8 @@ this repository has no private reporting channel and accepts only public issues.
 
 For source builds and signing behavior, see [README.md](README.md). For
 configuration behavior, see
-[Configuration Files](docs/configuration-files.md). Run the checks appropriate
+[Configuration Files](docs/configuration-files.md). Changes that touch Spaces,
+displays, or cross-Space window movement must follow
+[Private macOS API Boundary](docs/private-apis.md). Run the checks appropriate
 to your changes in your own fork; passing checks does not create an obligation
 for this repository to accept or distribute the result.
